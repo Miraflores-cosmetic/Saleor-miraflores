@@ -1,0 +1,2 @@
+export { ProductReviewPublishedPage } from "./ProductReviewPublishedPage";
+
