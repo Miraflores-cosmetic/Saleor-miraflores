@@ -21,7 +21,7 @@ FROM python:3.12-slim
 
 RUN groupadd -r saleor && useradd -r -g saleor saleor
 
-# Pillow dependencies
+# Pillow dependencies and tools for docker-entrypoint.sh
 RUN apt-get update \
   && apt-get install -y \
   libffi8 \
@@ -37,6 +37,10 @@ RUN apt-get update \
   libcurl4 \
   # Required to allows to identify file types when handling file uploads
   media-types \
+  # PostgreSQL client for pg_isready command in entrypoint
+  postgresql-client \
+  # Redis client for redis-cli command in entrypoint
+  redis-tools \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
