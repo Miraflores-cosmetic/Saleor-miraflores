@@ -1,0 +1,14 @@
+{
+  "name": "moysklad-sync",
+  "version": "1.0.0",
+  "description": "Синхронизация остатков Мой Склад → Saleor",
+  "type": "module",
+  "main": "sync.js",
+  "scripts": {
+    "sync": "node sync.js",
+    "start": "node sync.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
