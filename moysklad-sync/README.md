@@ -74,71 +74,23 @@ npm run sync
   ```
   Если в ответе есть `"token": "eyJ..."` — учётные данные верные. Если в `data.tokenCreate` есть `errors` или сообщение про credentials — неверный email или пароль; используйте те же данные, под которыми входите в дашборд на этом домене.
 
-## Cron (каждые 30 минут)
+## Cron (каждые 3 часа)
 
-Скрипт `run-sync.sh` подгружает `.env` и запускает синхронизацию. Чтобы синхронизация шла автоматически каждые 30 минут, добавьте задачу в планировщик cron.
+Скрипт `run-sync.sh` подгружает `.env` и запускает синхронизацию. Чтобы синхронизация шла автоматически **каждые 3 часа**, добавьте задачу в планировщик cron (см. раздел «Настройка на сервере» ниже или шаги здесь).
 
-### Шаг 1. Откройте терминал
-
-На том компьютере или сервере, где развёрнут проект (и где есть доступ к Node.js и папке `moysklad-sync`), откройте терминал (Terminal, iTerm, SSH-сессию и т.п.).
-
-### Шаг 2. Откройте список ваших cron-задач для редактирования
-
-Введите команду:
-
-```bash
-crontab -e
-```
-
-Нажмите Enter.
-
-- Если cron у вас ещё ни разу не настраивался, может появиться выбор редактора (например «Select an editor»). Выберите привычный (например `nano` — номер 1, или `vim` — если умеете им пользоваться).
-- Откроется файл с вашими задачами (пустой или уже с другими строками).
-
-### Шаг 3. Добавьте строку с задачей
-
-Перейдите в конец файла (в `nano` — стрелками или Ctrl+End) и **добавьте одну новую строку** — без лишних пробелов в начале:
+Откройте crontab: `crontab -e` и добавьте строку (замените путь на путь к `moysklad-sync` на вашем сервере):
 
 ```
-*/30 * * * * "/Users/ap/Projects/Miraflores 2.0/moysklad-sync/run-sync.sh" >> "/Users/ap/Projects/Miraflores 2.0/moysklad-sync/moysklad-sync.log" 2>&1
+0 */3 * * * "/path/to/moysklad-sync/run-sync.sh" >> "/path/to/moysklad-sync/moysklad-sync.log" 2>&1
 ```
 
-Если проект у вас лежит в другой папке — замените оба пути на свои, например:
+Пример для Linux-сервера:
 
 ```
-*/30 * * * * "/home/user/projects/Miraflores 2.0/moysklad-sync/run-sync.sh" >> "/home/user/projects/Miraflores 2.0/moysklad-sync/moysklad-sync.log" 2>&1
+0 */3 * * * "/root/moysklad-sync/run-sync.sh" >> "/root/moysklad-sync/moysklad-sync.log" 2>&1
 ```
 
-Путь должен вести к файлу `run-sync.sh` и к лог-файлу (обычно в той же папке `moysklad-sync`).
-
-### Шаг 4. Сохраните файл и закройте редактор
-
-- **nano:** `Ctrl+O` (сохранить), Enter, затем `Ctrl+X` (выйти).
-- **vim:** нажмите `Esc`, введите `:wq` и Enter.
-- **другой редактор:** сохраните файл и закройте его обычным способом.
-
-После сохранения cron подхватит новый список задач.
-
-### Шаг 5. Проверьте, что задача добавилась
-
-В терминале выполните:
-
-```bash
-crontab -l
-```
-
-Должна появиться строка с `run-sync.sh` и `*/30 * * * *`. Это значит, что задача «каждые 30 минут» добавлена.
-
-### Шаг 6. (По желанию) Убедитесь, что синхронизация действительно запускается
-
-- Подождите до 30 минут или перезапустите cron/сервер (если есть такая возможность).
-- Посмотрите лог:
-  ```bash
-  tail -f "/Users/ap/Projects/Miraflores 2.0/moysklad-sync/moysklad-sync.log"
-  ```
-  (путь замените на свой при необходимости). В логе должны появляться новые записи примерно раз в 30 минут.
-
-Готово. С этого момента синхронизация остатков Мой Склад → Saleor будет запускаться каждые 30 минут.
+Проверка: `crontab -l` — должна быть строка с `0 */3 * * *`. Лог: `tail -f /path/to/moysklad-sync/moysklad-sync.log`.
 
 ## Логи
 
@@ -152,22 +104,120 @@ crontab -l
 - Товар есть в Saleor, в МС его нет — остаток в Saleor не трогаем.
 - У варианта в Saleor нет SKU — остаток не трогаем.
 
-## Деплой на прод
+## Настройка на сервере (по шагам)
 
-1. **Код уже в git** — папка `moysklad-sync` закоммичена и запушена в репозиторий (например `Saleor-miraflores`). На прод-сервере выполните `git pull`, чтобы подтянуть её.
-2. **На сервере** перейдите в папку проекта и затем в `moysklad-sync`:
+Выполняйте на машине, где крутится Saleor (или откуда есть доступ к API Saleor и в интернет к МС).
+
+### Предварительно
+
+- Node.js 18+ (`node -v`).
+- В репозитории есть папка `moysklad-sync`. На сервере: `cd /path/to/repo && git pull`.
+
+---
+
+### Шаг 1. Синхронизация МС → Saleor (остатки каждые 3 часа)
+
+1. Перейдите в каталог:
    ```bash
-   cd /path/to/your/repo/moysklad-sync
+   cd /path/to/repo/moysklad-sync
    ```
-3. **Создайте `.env`** на сервере (файл в git не попадает). Скопируйте из `.env.example` и заполните **продакшен-значениями**:
-   - `MOYSKLAD_TOKEN` — токен из раздела Токены МС
-   - `SALEOR_GRAPHQL_URL` — URL продакшен Saleor, например `https://miraflores-shop.com/graphql/`
-   - `SALEOR_STAFF_EMAIL` и `SALEOR_STAFF_PASSWORD` — учётные данные staff для продакшен Saleor
-4. **Проверьте Node.js**: `node -v` (нужен 18+). Если Node нет — установите его на сервере.
-5. **Проверка запуска**: `node sync.js` — в логе должно быть «обновлено N», без ошибок доступа.
-6. **Настройте cron** (каждые 30 минут) по шагам из раздела «Cron» выше: `crontab -e`, вставить строку с путём к `run-sync.sh` на этом сервере.
 
-После этого синхронизация будет автоматически запускаться каждые 30 минут.
+2. Создайте `.env` (в git не коммитить):
+   ```bash
+   cp .env.example .env
+   nano .env   # или vim
+   ```
+   Заполните продакшен-значения:
+   - `MOYSKLAD_TOKEN` (или `MOYSKLAD_LOGIN` + `MOYSKLAD_PASSWORD`) — доступ к МС
+   - `SALEOR_GRAPHQL_URL` — например `https://miraflores-shop.com/graphql/`
+   - `SALEOR_STAFF_EMAIL`, `SALEOR_STAFF_PASSWORD` — staff Saleor
+
+3. Проверьте запуск синхронизации:
+   ```bash
+   node sync.js
+   ```
+   В выводе должно быть «обновлено N» без ошибок.
+
+4. Настройте cron **каждые 3 часа**:
+   ```bash
+   crontab -e
+   ```
+   Добавьте строку (подставьте свой путь к `moysklad-sync`):
+   ```
+   0 */3 * * * "/path/to/moysklad-sync/run-sync.sh" >> "/path/to/moysklad-sync/moysklad-sync.log" 2>&1
+   ```
+   Сохраните и выйдите. Проверка: `crontab -l`.
+
+Готово: остатки МС → Saleor будут обновляться каждые 3 часа.
+
+---
+
+### Шаг 2. Связь Saleor → МС (реализация при отгрузке)
+
+1. Убедитесь, что `.env` в `moysklad-sync` уже настроен (те же MOYSKLAD_*, что и для sync).
+
+2. Запустите webhook-сервер как постоянный процесс.
+
+   **Вариант A: через systemd** (рекомендуется на Linux).
+
+   Создайте файл `/etc/systemd/system/moysklad-webhook.service` (подставьте свой путь и пользователя):
+
+   ```ini
+   [Unit]
+   Description=Saleor→МС webhook (реализация при отгрузке)
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=www-data
+   WorkingDirectory=/path/to/moysklad-sync
+   EnvironmentFile=/path/to/moysklad-sync/.env
+   ExecStart=/usr/bin/node webhook-server.js
+   Restart=on-failure
+   RestartSec=10
+   Environment=NODE_ENV=production
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   Замените `/path/to/moysklad-sync` на реальный путь и при необходимости `User=www-data` на пользователя, от которого запускаете приложение.
+
+   Затем:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable moysklad-webhook
+   sudo systemctl start moysklad-webhook
+   sudo systemctl status moysklad-webhook
+   ```
+
+   **Вариант B: вручную в фоне** (для быстрой проверки):
+   ```bash
+   cd /path/to/moysklad-sync
+   nohup node webhook-server.js >> moysklad-webhook.log 2>&1 &
+   ```
+
+3. Сделайте URL вебхука доступным снаружи (чтобы Saleor мог отправить POST).
+
+   - Если сервер слушает только localhost:3300 — настройте nginx (или другой прокси). Пример конфигурации nginx:
+     ```nginx
+     location /webhook/order-fulfilled {
+         proxy_pass http://127.0.0.1:3300;
+         proxy_http_version 1.1;
+         proxy_set_header Host $host;
+         proxy_set_header X-Real-IP $remote_addr;
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+         proxy_set_header X-Forwarded-Proto $scheme;
+     }
+     ```
+   - Итоговый URL для Saleor будет вида: `https://ваш-домен.ru/webhook/order-fulfilled` (без порта 3300, если прокси слушает 443).
+
+4. В **Saleor Dashboard**: **Configuration → Webhooks** — создайте webhook:
+   - **Event**: отгрузка заказа (ORDER_FULFILLED / Order fulfilled).
+   - **Target URL**: `https://ваш-домен.ru/webhook/order-fulfilled`.
+
+5. Файл дедупликации `moysklad-fulfillments.json` создаётся в `moysklad-sync` автоматически. Не удаляйте его на сервере — иначе возможны дубли документов в МС.
+
+Проверка: в дашборде Saleor отгрузите тестовый заказ; в МС в **Продажи → Реализации** должен появиться новый документ с контрагентом «Интернет-магазин».
 
 ## Безопасность
 
@@ -177,3 +227,50 @@ crontab -l
 ## Требования
 
 - Node.js 18+ (для нативного `fetch`).
+
+---
+
+## Интеграция Saleor → МС: реализация при отгрузке (webhook)
+
+При отгрузке заказа в Saleor (событие **ORDER_FULFILLED** / подтверждение отгрузки) можно автоматически создавать в Мой Склад документ **«Реализация»**.
+
+### Поведение
+
+- **Триггер:** webhook от Saleor при отгрузке заказа (в дашборде настраивается событие на отгрузку заказа, URL — ваш сервис).
+- **Контрагент в МС:** один общий — «Интернет-магазин» (создаётся автоматически, если нет).
+- **Склад:** «Склад МАГАЗИН» (тот же, что в синхронизации остатков).
+- **Позиции:** только артикул (SKU из Saleor) и количество; суммы и оплата в МС не передаются.
+- **Опционально:** в описание документа в МС попадают ФИО, телефон и адрес доставки из заказа.
+- **Защита от дублей:** один заказ/один fulfillment → один документ в МС; повторные запросы по тому же заказу не создают второй документ.
+
+### Запуск сервера вебхуков
+
+На машине, до которой Saleor сможет достучаться по HTTP:
+
+```bash
+cd moysklad-sync
+npm run webhook
+# или
+node webhook-server.js
+```
+
+Сервер слушает порт **3300** (или значение `WEBHOOK_PORT` в `.env`).
+
+- **URL для webhook в Saleor:** `https://ВАШ_ДОМЕН:3300/webhook/order-fulfilled` (или ваш порт/путь).
+- В дашборде Saleor: **Configuration → Webhooks** — создать webhook с событием отгрузки заказа (ORDER_FULFILLED / order fulfillment) и указать этот URL.
+
+### Переменные окружения для webhook
+
+Используются те же, что для синхронизации остатков: `MOYSKLAD_TOKEN` (или `MOYSKLAD_LOGIN` + `MOYSKLAD_PASSWORD`), плюс опционально:
+
+| Переменная | Описание |
+|------------|----------|
+| `WEBHOOK_PORT` | Порт HTTP-сервера (по умолчанию 3300) |
+| `MOYSKLAD_DEDUP_FILE` | Путь к файлу привязки «заказ → документ МС» (по умолчанию `moysklad-fulfillments.json` в папке `moysklad-sync`) |
+| `MOYSKLAD_SYNC_LOG` | Путь к логу (по умолчанию общий с sync — можно разделить, задав свой путь) |
+
+### Формат payload от Saleor
+
+Сервис принимает payload в формате **order_fulfillment_confirmation** (notify): в теле приходит `payload.order`, `payload.physical_lines`. В каждой строке `physical_lines` используются `order_line.product_sku` и `quantity`. Если в Saleor настроен другой формат webhook (например sync с полями `order` и `fulfillment` на верхнем уровне), структура будет распознана по наличию `order.id` и списка строк отгрузки.
+
+Деплой webhook на сервере описан в разделе **«Настройка на сервере (по шагам)»** выше — шаг 2.

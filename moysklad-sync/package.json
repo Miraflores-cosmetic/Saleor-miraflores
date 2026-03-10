@@ -6,7 +6,8 @@
   "main": "sync.js",
   "scripts": {
     "sync": "node sync.js",
-    "start": "node sync.js"
+    "start": "node sync.js",
+    "webhook": "node webhook-server.js"
   },
   "engines": {
     "node": ">=18"
