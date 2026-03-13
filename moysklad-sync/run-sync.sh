@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Загрузка .env и запуск синхронизации Мой Склад → Saleor.
-# Для cron: */30 * * * * /path/to/moysklad-sync/run-sync.sh
+# Для cron: */10 * * * * /path/to/moysklad-sync/run-sync.sh
 
 cd "$(dirname "$0")"
 

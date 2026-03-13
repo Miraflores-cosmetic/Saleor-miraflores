@@ -116,7 +116,7 @@ export async function findAssortmentByArticle(article) {
 
 /**
  * Создать документ «Реализация» (demand).
- * @param {Array<{ sku: string, quantity: number }>} positions - артикул (SKU) и количество
+ * @param {Array<{ sku: string, quantity: number, priceKopecks?: number }>} positions - артикул, количество, цена в копейках (опционально)
  * @param {object} options - { storeName, counterpartyName, description }
  * @returns {Promise<{ id, meta }>} созданный документ
  */
@@ -131,13 +131,15 @@ export async function createDemand(positions, options = {}) {
   ]);
 
   const demandPositions = [];
-  for (const { sku, quantity } of positions) {
+  for (const { sku, quantity, priceKopecks } of positions) {
     const assortment = await findAssortmentByArticle(sku);
     if (!assortment) continue;
-    demandPositions.push({
+    const pos = {
       quantity: Math.max(1, Math.floor(Number(quantity)) || 1),
       assortment: { meta: assortment.meta },
-    });
+    };
+    if (priceKopecks != null && priceKopecks >= 0) pos.price = priceKopecks;
+    demandPositions.push(pos);
   }
 
   if (demandPositions.length === 0) {

@@ -86,6 +86,8 @@ function parsePayload(body) {
         order_line: {
           product_sku: variant.sku ?? ol.productSku ?? ol.product_sku,
           quantity: l.quantity ?? ol.quantity,
+          unit_price_gross_amount: ol.unitPrice?.gross?.amount ?? ol.unit_price_gross_amount,
+          unit_price_net_amount: ol.unitPrice?.net?.amount ?? ol.unit_price_net_amount,
         },
       };
     });
@@ -95,8 +97,9 @@ function parsePayload(body) {
 }
 
 /**
- * Собрать позиции для МС: артикул (SKU) + количество.
- * physical_lines: [ { order_line: { product_sku, ... }, quantity }, ... ]
+ * Собрать позиции для МС: артикул (SKU), количество, цена за единицу.
+ * physical_lines: [ { order_line: { product_sku, unit_price_gross_amount, ... }, quantity }, ... ]
+ * Цена в Saleor — в валюте заказа; в МС передаём в копейках (минимальные единицы).
  */
 function buildPositions(physicalLines) {
   const positions = [];
@@ -104,7 +107,13 @@ function buildPositions(physicalLines) {
     const orderLine = line.order_line || line;
     const sku = orderLine.product_sku ?? orderLine.product?.sku;
     const qty = line.quantity ?? orderLine.quantity ?? 1;
-    if (sku) positions.push({ sku: String(sku).trim(), quantity: qty });
+    const unitPrice = orderLine.unit_price_gross_amount ?? orderLine.unit_price_net_amount ?? orderLine.unitPrice;
+    let priceKopecks = null;
+    if (unitPrice != null && unitPrice !== '') {
+      const p = parseFloat(String(unitPrice).replace(',', '.'));
+      if (!Number.isNaN(p) && p >= 0) priceKopecks = Math.round(p * 100);
+    }
+    if (sku) positions.push({ sku: String(sku).trim(), quantity: qty, priceKopecks });
   }
   return positions;
 }

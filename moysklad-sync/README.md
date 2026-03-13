@@ -74,23 +74,23 @@ npm run sync
   ```
   Если в ответе есть `"token": "eyJ..."` — учётные данные верные. Если в `data.tokenCreate` есть `errors` или сообщение про credentials — неверный email или пароль; используйте те же данные, под которыми входите в дашборд на этом домене.
 
-## Cron (каждые 3 часа)
+## Cron (каждые 10 минут)
 
-Скрипт `run-sync.sh` подгружает `.env` и запускает синхронизацию. Чтобы синхронизация шла автоматически **каждые 3 часа**, добавьте задачу в планировщик cron (см. раздел «Настройка на сервере» ниже или шаги здесь).
+Скрипт `run-sync.sh` подгружает `.env` и запускает синхронизацию. Чтобы синхронизация шла автоматически **каждые 10 минут**, добавьте задачу в планировщик cron (см. раздел «Настройка на сервере» ниже или шаги здесь).
 
 Откройте crontab: `crontab -e` и добавьте строку (замените путь на путь к `moysklad-sync` на вашем сервере):
 
 ```
-0 */3 * * * "/path/to/moysklad-sync/run-sync.sh" >> "/path/to/moysklad-sync/moysklad-sync.log" 2>&1
+*/10 * * * * "/path/to/moysklad-sync/run-sync.sh" >> "/path/to/moysklad-sync/moysklad-sync.log" 2>&1
 ```
 
 Пример для Linux-сервера:
 
 ```
-0 */3 * * * "/root/moysklad-sync/run-sync.sh" >> "/root/moysklad-sync/moysklad-sync.log" 2>&1
+*/10 * * * * "/root/moysklad-sync/run-sync.sh" >> "/root/moysklad-sync/moysklad-sync.log" 2>&1
 ```
 
-Проверка: `crontab -l` — должна быть строка с `0 */3 * * *`. Лог: `tail -f /path/to/moysklad-sync/moysklad-sync.log`.
+Проверка: `crontab -l` — должна быть строка с `*/10 * * * *`. Лог: `tail -f /path/to/moysklad-sync/moysklad-sync.log`.
 
 ## Логи
 
@@ -115,7 +115,7 @@ npm run sync
 
 ---
 
-### Шаг 1. Синхронизация МС → Saleor (остатки каждые 3 часа)
+### Шаг 1. Синхронизация МС → Saleor (остатки каждые 10 минут)
 
 1. Перейдите в каталог:
    ```bash
@@ -138,17 +138,17 @@ npm run sync
    ```
    В выводе должно быть «обновлено N» без ошибок.
 
-4. Настройте cron **каждые 3 часа**:
+4. Настройте cron **каждые 10 минут**:
    ```bash
    crontab -e
    ```
    Добавьте строку (подставьте свой путь к `moysklad-sync`):
    ```
-   0 */3 * * * "/path/to/moysklad-sync/run-sync.sh" >> "/path/to/moysklad-sync/moysklad-sync.log" 2>&1
+   */10 * * * * "/path/to/moysklad-sync/run-sync.sh" >> "/path/to/moysklad-sync/moysklad-sync.log" 2>&1
    ```
    Сохраните и выйдите. Проверка: `crontab -l`.
 
-Готово: остатки МС → Saleor будут обновляться каждые 3 часа.
+Готово: остатки МС → Saleor будут обновляться каждые 10 минут.
 
 ---
 
