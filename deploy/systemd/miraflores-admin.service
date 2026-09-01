@@ -1,0 +1,16 @@
+[Unit]
+Description=Miraflores Next Admin + BFF
+After=network.target miraflores-api.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/miraflores/Admin
+EnvironmentFile=/opt/miraflores/Admin/.env.local
+Environment=PORT=3010
+ExecStart=/usr/bin/npx next start -p 3010
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,27 @@
+.main {
+  max-width: 40rem;
+  padding-block: 64px 96px;
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-family: var(--font-open-sans);
+  font-size: var(--text-card-20-450);
+  font-weight: var(--font-weight-450);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-black);
+}
+
+.text {
+  margin: 0 0 1rem;
+  font-family: var(--font-open-sans);
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  line-height: 1.55;
+  color: var(--color-ink-black);
+}
+
+.meta {
+  font-weight: var(--font-weight-450);
+}

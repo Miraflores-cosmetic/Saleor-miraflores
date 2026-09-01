@@ -1,0 +1,225 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 880px;
+}
+
+.periodRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.periodChipWrap {
+  position: relative;
+}
+
+.periodPopover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 220px;
+  padding: 12px;
+  border: 0.5px solid rgba(0, 0, 0, 0.16);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(5, 24, 38, 0.12);
+  box-sizing: border-box;
+}
+
+.periodPopoverActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.periodDateField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-commissioner, system-ui);
+  font-size: var(--text-caption, 14px);
+  color: var(--color-gray, #9d9d9d);
+}
+
+.periodDateInput {
+  box-sizing: border-box;
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 0.5px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+.periodDateInput:focus {
+  outline: 2px solid rgba(41, 114, 48, 0.35);
+  outline-offset: 1px;
+}
+
+.periodChip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: 0.5px solid var(--account-hairline-color, rgba(0, 0, 0, 0.2));
+  font-family: var(--font-commissioner, system-ui);
+  font-size: var(--text-caption, 14px);
+  color: var(--color-gray, #9d9d9d);
+  cursor: pointer;
+}
+
+.periodChip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.periodChipActive {
+  background: rgba(41, 114, 48, 0.12);
+  border-color: transparent;
+  color: var(--color-brand-green, #297230);
+}
+
+.zoneRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 420px;
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.kpiCard {
+  margin: 0;
+  min-height: 0;
+}
+
+.kpiValue {
+  margin: 0;
+  font-family: var(--font-commissioner, system-ui);
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-black, #000);
+}
+
+.kpiLabel {
+  margin: 4px 0 0;
+  font-family: var(--font-commissioner, system-ui);
+  font-size: var(--text-body, 15px);
+  font-weight: 500;
+  color: var(--color-black, #000);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.funnel {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.funnelRow {
+  display: grid;
+  grid-template-columns: 24px minmax(120px, 200px) 1fr 32px;
+  gap: 10px;
+  align-items: center;
+}
+
+.funnelIndex {
+  font-size: var(--text-caption, 14px);
+  color: var(--color-gray, #9d9d9d);
+  text-align: right;
+}
+
+.funnelLabel {
+  font-family: var(--font-commissioner, system-ui);
+  font-size: var(--text-body, 15px);
+  font-weight: var(--text-body-weight, 300);
+}
+
+.funnelBarTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: #e8e8e8;
+  overflow: hidden;
+}
+
+.funnelBarFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: rgba(41, 114, 48, 0.35);
+}
+
+.funnelCount {
+  font-size: var(--text-caption, 14px);
+  color: var(--color-gray, #9d9d9d);
+  text-align: right;
+}
+
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.planCard {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 0.5px solid var(--account-hairline-color, rgba(0, 0, 0, 0.2));
+  background: #fff;
+}
+
+.planCard strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-commissioner, system-ui);
+  font-size: var(--text-body, 15px);
+  font-weight: 500;
+}
+
+.planCard p {
+  margin: 0;
+}
+
+@media (max-width: 768px) {
+  .kpiGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .funnelRow {
+    grid-template-columns: 20px 1fr 28px;
+  }
+
+  .funnelBarTrack {
+    display: none;
+  }
+}

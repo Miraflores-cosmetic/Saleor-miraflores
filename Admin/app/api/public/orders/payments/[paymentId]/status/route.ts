@@ -1,0 +1,29 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerApiBase } from '@/lib/serverApiBase';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { paymentId: string } },
+) {
+  const base = getServerApiBase();
+  const payToken = request.nextUrl.searchParams.get('payToken')?.trim() || '';
+  const qs = payToken ? `?payToken=${encodeURIComponent(payToken)}` : '';
+  try {
+    const res = await fetch(
+      `${base}/orders/payments/${encodeURIComponent(params.paymentId)}/status${qs}`,
+      { cache: 'no-store', headers: { Accept: 'application/json' } },
+    );
+    const text = await res.text();
+    return new NextResponse(text, {
+      status: res.status,
+      headers: {
+        'content-type':
+          res.headers.get('content-type') ?? 'application/json; charset=utf-8',
+      },
+    });
+  } catch {
+    return NextResponse.json({ message: 'Сервис недоступен' }, { status: 502 });
+  }
+}

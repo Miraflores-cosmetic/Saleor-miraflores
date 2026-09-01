@@ -1,0 +1,72 @@
+.main {
+  max-width: 40rem;
+  padding-block: 64px 96px;
+}
+
+.title {
+  margin: 0 0 1rem;
+  font-family: var(--font-open-sans);
+  font-size: var(--text-card-20-450);
+  font-weight: var(--font-weight-450);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-black);
+}
+
+.text {
+  margin: 0 0 1rem;
+  font-family: var(--font-open-sans);
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  line-height: 1.55;
+  color: var(--color-ink-black);
+}
+
+.meta {
+  font-weight: var(--font-weight-450);
+}
+
+.prose {
+  font-family: var(--font-open-sans);
+  font-size: var(--text-body);
+  font-weight: var(--text-body-weight);
+  line-height: 1.55;
+  color: var(--color-ink-black);
+}
+
+.prose :global(p) {
+  margin: 0 0 1rem;
+}
+
+.prose :global(h2),
+.prose :global(h3),
+.prose :global(h4) {
+  margin: 1.5rem 0 0.75rem;
+  font-weight: var(--font-weight-450);
+  letter-spacing: 0.02em;
+}
+
+.prose :global(ul),
+.prose :global(ol) {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.prose :global(a) {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose :global(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 0 1rem;
+}
+
+.prose :global(section.about-block) {
+  margin: 0 0 2rem;
+}
+
+

@@ -1,0 +1,58 @@
+.productSection {
+  margin-top: 94px;
+}
+
+.productPageFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.breadcrumbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+}
+
+.breadcrumbsLink {
+  color: var(--color-gray);
+  text-decoration: none;
+}
+
+.breadcrumbsLink:hover {
+  color: var(--color-black);
+}
+
+.breadcrumbsCurrent {
+  color: var(--color-black);
+}
+
+.breadcrumbsSep {
+  color: var(--color-gray);
+  user-select: none;
+}
+
+@media (max-width: 960px) {
+  .productSection {
+    /* = headerMain: safe-area + 4 + 40 + 4 */
+    margin-top: calc(48px + env(safe-area-inset-top, 0px));
+  }
+
+  .productPageFlow {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    gap: 0;
+  }
+
+  /* Полный путь — только desktop; на mobile back под галереей */
+  .breadcrumbs {
+    display: none;
+  }
+}

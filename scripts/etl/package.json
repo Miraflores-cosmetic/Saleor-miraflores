@@ -1,0 +1,17 @@
+{
+  "name": "miraflores-etl",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "inventory": "node inventory.mjs",
+    "migrate": "node migrate.mjs",
+    "migrate:catalog": "node migrate.mjs --apply --step=catalog",
+    "migrate:products": "node migrate.mjs --apply --step=products",
+    "migrate:media": "node migrate.mjs --apply --step=media",
+    "migrate:tags": "node migrate.mjs --apply --step=tags",
+    "restore": "bash restore-saleor-dump.sh"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

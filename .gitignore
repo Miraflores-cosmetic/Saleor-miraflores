@@ -1,0 +1,35 @@
+# Витрина — отдельный репозиторий Front-end-site
+Front/
+
+# Saleor / legacy junk в корне (не часть Miraflores 3.0)
+static/
+uv.lock
+
+node_modules/
+**/node_modules/
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+backend/.env
+Admin/.env.local
+deploy/deploy.env
+
+# Build / cache
+dist/
+**/dist/
+.next/
+**/.next/
+backend/.data/
+.data/
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# Logs & OS
+*.log
+.DS_Store
+
+# Dumps / ETL artifacts
+dumps/
+scripts/etl/.env

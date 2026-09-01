@@ -1,0 +1,268 @@
+.section {
+  margin-top: 94px;
+  padding: 0 0 96px;
+}
+
+.breadcrumbs {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+}
+
+.breadcrumbsLink {
+  color: var(--color-gray);
+  text-decoration: none;
+}
+
+.breadcrumbsLink:hover {
+  color: var(--color-black);
+}
+
+.breadcrumbsSep {
+  color: var(--color-gray);
+  user-select: none;
+}
+
+.breadcrumbsCurrent {
+  color: var(--color-black);
+}
+
+.title {
+  margin: 0 0 28px;
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-bottom: 36px;
+}
+
+.tab,
+.tabActive {
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-350);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--color-gray);
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--color-black);
+}
+
+.tabActive {
+  color: var(--color-black);
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px 24px;
+}
+
+.cardLink {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--color-bright-snow);
+}
+
+.coverImg,
+.coverPlaceholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1);
+  transition: transform 0.35s ease;
+}
+
+.cardLink:hover .coverImg,
+.cardLink:hover .coverPlaceholder {
+  transform: scale(1.06);
+}
+
+.coverPlaceholder {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.meta {
+  font-size: var(--text-caption);
+  color: var(--color-gray);
+  letter-spacing: 0.02em;
+}
+
+.cardTitle {
+  font-size: var(--text-card-20-400);
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.cardExcerpt {
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  color: var(--color-gray);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.empty {
+  color: var(--color-gray);
+}
+
+.loadMoreWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+
+.loadMore {
+  font: inherit;
+  font-size: var(--text-caption);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 12px 24px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-black);
+}
+
+.loadMore:hover:not(:disabled) {
+  border-color: var(--color-black);
+}
+
+.loadMore:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverImg,
+  .coverPlaceholder {
+    transition: none;
+  }
+
+  .cardLink:hover .coverImg,
+  .cardLink:hover .coverPlaceholder {
+    transform: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 16px;
+  }
+}
+
+.breadcrumbsMobile {
+  display: none;
+}
+
+.breadcrumbsBack {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin: -10px 0;
+  padding: 10px 0;
+  color: var(--color-gray);
+  text-decoration: none;
+  font-size: var(--text-caption);
+  font-weight: var(--text-caption-weight);
+}
+
+.breadcrumbsBack:hover,
+.breadcrumbsBack:focus-visible {
+  color: var(--color-black);
+}
+
+.breadcrumbsBack:focus-visible {
+  outline: 2px solid var(--color-black);
+  outline-offset: 2px;
+}
+
+.breadcrumbsBackIcon {
+  flex-shrink: 0;
+}
+
+.breadcrumbsBackLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .section {
+    /* = headerMain: 48px + safe-area (как PDP) */
+    margin-top: calc(48px + env(safe-area-inset-top, 0px));
+  }
+
+  .breadcrumbs {
+    display: none;
+  }
+
+  .breadcrumbsMobile {
+    display: block;
+    margin-bottom: 20px;
+  }
+
+  .tabs {
+    gap: 8px 4px;
+    margin-bottom: 28px;
+  }
+
+  .tab,
+  .tabActive {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    margin: -10px -4px;
+  }
+
+  .loadMore {
+    min-height: 44px;
+    padding: 12px 28px;
+  }
+}
+
+@media (max-width: 560px) {
+  .section {
+    padding: 0 0 64px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
