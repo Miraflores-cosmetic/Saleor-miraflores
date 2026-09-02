@@ -22,7 +22,8 @@ load_deploy_env() {
   DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}"
   FRONT_STATIC_DIR="${FRONT_STATIC_DIR:-/var/www/miraflores-front}"
   # Front → Front-end-site (mira-ap); mono → Back-miraflores (mira-ssh)
-  FRONT_GIT_PUSH_KEY="${FRONT_GIT_PUSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}"
+  # mira-ap → id_ed25519_deploy_front; mira-ssh → id_ed25519_deploy
+  FRONT_GIT_PUSH_KEY="${FRONT_GIT_PUSH_KEY:-$HOME/.ssh/id_ed25519_deploy_front}"
   MONO_GIT_PUSH_KEY="${MONO_GIT_PUSH_KEY:-$HOME/.ssh/id_ed25519_deploy}"
 }
 
@@ -80,7 +81,7 @@ git_push_dir() {
     exit 1
   fi
   if [[ -z "$key" ]]; then
-    key="${FRONT_GIT_PUSH_KEY:-${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}}"
+    key="${FRONT_GIT_PUSH_KEY:-$HOME/.ssh/id_ed25519_deploy_front}"
   fi
   key="${key/#\~/$HOME}"
   if [[ ! -f "$key" ]]; then
