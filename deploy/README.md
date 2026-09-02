@@ -127,7 +127,7 @@ cd "/Users/ap/Projects/Miraflores 3.0"
 # remote уже origin → Back-miraflores
 ./deploy/scripts/deploy-backend.sh --force-push
 # или только push без деплоя:
-GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_mira_ap -o IdentitiesOnly=yes' \
+GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_deploy -o IdentitiesOnly=yes' \
   git push --force-with-lease -u origin main
 ```
 
@@ -142,7 +142,7 @@ GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_mira_ap -o IdentitiesOnly=yes' \
 ./deploy/scripts/deploy-backend.sh -m "fix: order items table"
 ```
 
-Ключ push: `FRONT_GIT_PUSH_KEY` / `id_ed25519_mira_ap` в `deploy/deploy.env` (write на deploy key).
+Ключи push: Front — `FRONT_GIT_PUSH_KEY` (`id_ed25519_mira_ap`); mono — `MONO_GIT_PUSH_KEY` (`id_ed25519_deploy` / Back-miraflores deploy key).
 
 На VPS при git-деплое: `git fetch` + `git reset --hard <SHA>`. Секреты (`backend/.env`, `deploy/deploy.env`) в `.gitignore` — на VPS не трогаются.
 

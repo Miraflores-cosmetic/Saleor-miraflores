@@ -41,7 +41,7 @@ Deploy backend + admin: [commit] → git push → pull on VPS → build → syst
   ./deploy/scripts/deploy-backend.sh --force-push   # заменить origin/main (Saleor → Miraflores)
   ./deploy/scripts/deploy-backend.sh -m "описание"
 
-Config: deploy/deploy.env (MONO_GIT_REMOTE, FRONT_GIT_PUSH_KEY)
+Config: deploy/deploy.env (MONO_GIT_REMOTE, MONO_GIT_PUSH_KEY)
 EOF
   exit "${1:-0}"
 }
@@ -139,7 +139,7 @@ else
       echo "   Используйте только если remote — старый Saleor / чужая история."
       echo ""
     fi
-    git_push_dir "$MONO_ROOT" "$DEPLOY_BRANCH" "$DO_FORCE_PUSH"
+    git_push_dir "$MONO_ROOT" "$DEPLOY_BRANCH" "$DO_FORCE_PUSH" "${MONO_GIT_PUSH_KEY}"
   else
     log "skip git push"
   fi

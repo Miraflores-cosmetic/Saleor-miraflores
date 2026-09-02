@@ -21,8 +21,9 @@ load_deploy_env() {
   DEPLOY_BRANCH="${DEPLOY_BRANCH:-main}"
   DEPLOY_SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}"
   FRONT_STATIC_DIR="${FRONT_STATIC_DIR:-/var/www/miraflores-front}"
-  # Push в Miraflores-cosmetic с Mac — тот же ключ, что и VPS (не личный Highrates).
-  FRONT_GIT_PUSH_KEY="${FRONT_GIT_PUSH_KEY:-$DEPLOY_SSH_KEY}"
+  # Front → Front-end-site (mira-ap); mono → Back-miraflores (mira-ssh)
+  FRONT_GIT_PUSH_KEY="${FRONT_GIT_PUSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}"
+  MONO_GIT_PUSH_KEY="${MONO_GIT_PUSH_KEY:-$HOME/.ssh/id_ed25519_deploy}"
 }
 
 setup_ssh() {
@@ -47,7 +48,7 @@ verify_deploy_ssh() {
     echo "Ключ из deploy.env: $key" >&2
     echo "Он работает для GitHub, но должен быть в ~/.ssh/authorized_keys на VPS." >&2
     echo "" >&2
-    echo "Один раз добавьте ключ (попросит пароль root):" >&2
+    echo "Один раз добавьте ключ (просит пароль root):" >&2
     echo "  ssh-copy-id -i ${key}.pub $DEPLOY_HOST" >&2
     echo "" >&2
     echo "Или задеплойте вручную на сервере (см. deploy/README.md)." >&2
@@ -66,19 +67,28 @@ require_clean_git() {
   fi
 }
 
+# git_push_dir <dir> [branch] [force=0|1] [ssh_key]
 git_push_dir() {
   local dir="$1"
   local branch="${2:-$DEPLOY_BRANCH}"
   local force="${3:-0}"
+  local key="${4:-}"
   local current
   current="$(git -C "$dir" rev-parse --abbrev-ref HEAD)"
   if [[ "$current" != "$branch" ]]; then
     echo "error: в $dir ветка '$current', ожидается '$branch'" >&2
     exit 1
   fi
-  local key="${FRONT_GIT_PUSH_KEY:-${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}}"
+  if [[ -z "$key" ]]; then
+    key="${FRONT_GIT_PUSH_KEY:-${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}}"
+  fi
   key="${key/#\~/$HOME}"
+  if [[ ! -f "$key" ]]; then
+    echo "error: git push key не найден: $key" >&2
+    exit 1
+  fi
   export GIT_SSH_COMMAND="ssh -i '$key' -o IdentitiesOnly=yes"
+  log "git auth key: $key"
 
   if [[ "$force" -eq 1 ]]; then
     log "git push --force-with-lease ($dir) → origin/$branch"

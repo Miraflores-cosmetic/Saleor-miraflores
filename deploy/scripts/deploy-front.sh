@@ -34,7 +34,7 @@ Deploy Front: [optional commit] → git push → pull on VPS → build → nginx
   ./deploy/scripts/deploy-front.sh -m "описание коммита"
 
 Config: deploy/deploy.env
-  FRONT_GIT_PUSH_KEY — SSH push (default: DEPLOY_SSH_KEY / id_ed25519_mira_ap → Miraflores-cosmetic)
+  FRONT_GIT_PUSH_KEY — SSH push (default: id_ed25519_mira_ap → Front-end-site)
 EOF
   exit "${1:-0}"
 }
@@ -81,7 +81,7 @@ if [[ "$DO_RSYNC" -eq 1 ]]; then
     "$DEPLOY_HOST:$DEPLOY_PATH/Front/"
 elif [[ "$DO_PUSH" -eq 1 ]]; then
   require_clean_git "$FRONT_DIR"
-  git_push_dir "$FRONT_DIR"
+  git_push_dir "$FRONT_DIR" "$DEPLOY_BRANCH" 0 "${FRONT_GIT_PUSH_KEY}"
 else
   log "skip git push"
 fi
