@@ -118,13 +118,13 @@ chmod +x deploy/scripts/*.sh
 
 ### Backend + Admin (git push → pull → build → restart)
 
-Репозиторий: **`Miraflores-cosmetic/Back-end-site`** — монорепо `backend` + `Admin` + `packages` + `deploy` (без `Front/`).
+Репозиторий: **`Miraflores-cosmetic/Back-miraflores`** — монорепо `backend` + `Admin` + `packages` + `deploy` (без `Front/`).
 
 **Первый раз (локально), если на GitHub ещё Saleor / чужая история:**
 
 ```bash
 cd "/Users/ap/Projects/Miraflores 3.0"
-# remote уже origin → Back-end-site
+# remote уже origin → Back-miraflores
 ./deploy/scripts/deploy-backend.sh --force-push
 # или только push без деплоя:
 GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_mira_ap -o IdentitiesOnly=yes' \

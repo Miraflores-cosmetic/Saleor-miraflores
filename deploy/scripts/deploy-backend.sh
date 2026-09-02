@@ -65,10 +65,10 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-MONO_REMOTE="${MONO_GIT_REMOTE:-git@github.com:Miraflores-cosmetic/Back-end-site.git}"
+MONO_REMOTE="${MONO_GIT_REMOTE:-git@github.com:Miraflores-cosmetic/Back-miraflores.git}"
 
 if [[ "$DO_RSYNC" -ne 1 && ! -d "$MONO_ROOT/.git" ]]; then
-  log "нет git в монорепо → rsync (см. deploy/README.md Back-end-site)"
+  log "нет git в монорепо → rsync (см. deploy/README.md Back-miraflores)"
   DO_RSYNC=1
   DO_PUSH=0
 fi
@@ -115,7 +115,7 @@ if [[ "$DO_RSYNC" -eq 1 ]]; then
   SHA="rsync"
 else
   [[ -d "$MONO_ROOT/.git" ]] || {
-    echo "error: нет git в $MONO_ROOT — см. deploy/README.md (Back-end-site)" >&2
+    echo "error: нет git в $MONO_ROOT — см. deploy/README.md (Back-miraflores)" >&2
     exit 1
   }
 
