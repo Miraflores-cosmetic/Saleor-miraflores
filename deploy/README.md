@@ -120,29 +120,33 @@ chmod +x deploy/scripts/*.sh
 
 Репозиторий: **`Miraflores-cosmetic/Back-end-site`** — монорепо `backend` + `Admin` + `packages` + `deploy` (без `Front/`).
 
-**Первый раз (локально):**
+**Первый раз (локально), если на GitHub ещё Saleor / чужая история:**
 
 ```bash
 cd "/Users/ap/Projects/Miraflores 3.0"
-git init -b main
-git add -A
-git commit -m "Initial commit: API, Admin, packages"
-git remote add origin git@github.com:Miraflores-cosmetic/Back-end-site.git
-# создайте пустой репо Back-end-site в org Miraflores-cosmetic на GitHub
-GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_mira_ap -o IdentitiesOnly=yes' git push -u origin main
+# remote уже origin → Back-end-site
+./deploy/scripts/deploy-backend.sh --force-push
+# или только push без деплоя:
+GIT_SSH_COMMAND='ssh -i ~/.ssh/id_ed25519_mira_ap -o IdentitiesOnly=yes' \
+  git push --force-with-lease -u origin main
 ```
 
-**Деплой:**
+`--force-push` делает `git push --force-with-lease` (перезаписывает `origin/main`). Нужен write-access у deploy key.
+
+**Обычный деплой (после того как Miraflores уже на origin):**
 
 ```bash
 ./deploy/scripts/deploy-backend.sh
 ./deploy/scripts/deploy-backend.sh --admin   # только Next
 ./deploy/scripts/deploy-backend.sh --rsync   # без GitHub (legacy)
+./deploy/scripts/deploy-backend.sh -m "fix: order items table"
 ```
 
 Ключ push: `FRONT_GIT_PUSH_KEY` / `id_ed25519_mira_ap` в `deploy/deploy.env` (write на deploy key).
 
-Секреты (`backend/.env`, `deploy/deploy.env`) в `.gitignore` — на VPS не трогаются.
+На VPS при git-деплое: `git fetch` + `git reset --hard <SHA>`. Секреты (`backend/.env`, `deploy/deploy.env`) в `.gitignore` — на VPS не трогаются.
+
+Если на VPS ещё нет `.git` в `/opt/miraflores` — скрипт сделает `git init` + remote. Пока удобнее `--rsync`, пока не переключите сервер на pull.
 
 ### Mixed Content (localhost в URL картинок)
 1. **Front:** `uploadsUrl()` переписывает `http://127.0.0.1:3001/...` → `/uploads/...` (нужен redeploy front).

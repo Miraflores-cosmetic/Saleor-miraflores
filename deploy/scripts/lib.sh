@@ -69,14 +69,31 @@ require_clean_git() {
 git_push_dir() {
   local dir="$1"
   local branch="${2:-$DEPLOY_BRANCH}"
+  local force="${3:-0}"
   local current
   current="$(git -C "$dir" rev-parse --abbrev-ref HEAD)"
   if [[ "$current" != "$branch" ]]; then
     echo "error: в $dir ветка '$current', ожидается '$branch'" >&2
     exit 1
   fi
-  log "git push ($dir) → origin/$branch"
   local key="${FRONT_GIT_PUSH_KEY:-${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519_mira_ap}}"
   key="${key/#\~/$HOME}"
-  GIT_SSH_COMMAND="ssh -i '$key' -o IdentitiesOnly=yes" git -C "$dir" push -u origin "$branch"
+  export GIT_SSH_COMMAND="ssh -i '$key' -o IdentitiesOnly=yes"
+
+  if [[ "$force" -eq 1 ]]; then
+    log "git push --force-with-lease ($dir) → origin/$branch"
+    git -C "$dir" push --force-with-lease -u origin "$branch"
+    return
+  fi
+
+  log "git push ($dir) → origin/$branch"
+  if ! git -C "$dir" push -u origin "$branch"; then
+    echo "" >&2
+    echo "error: обычный push отклонён (non-fast-forward / unrelated histories)." >&2
+    echo "Если origin — старый Saleor и его нужно заменить на Miraflores:" >&2
+    echo "  ./deploy/scripts/deploy-backend.sh --force-push" >&2
+    echo "Или без GitHub:" >&2
+    echo "  ./deploy/scripts/deploy-backend.sh --rsync" >&2
+    exit 1
+  fi
 }

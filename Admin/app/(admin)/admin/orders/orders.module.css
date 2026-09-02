@@ -299,6 +299,32 @@
   width: 100%;
 }
 
+.orderItemsTable th:first-child,
+.orderItemsTable td:first-child {
+  width: 32%;
+  max-width: 32%;
+  word-break: break-word;
+}
+
+.orderItemsTable th:nth-child(2),
+.orderItemsTable td:nth-child(2) {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orderItemsTable th:nth-child(3),
+.orderItemsTable td:nth-child(3),
+.orderItemsTable th:nth-child(4),
+.orderItemsTable td:nth-child(4),
+.orderItemsTable th:nth-child(5),
+.orderItemsTable td:nth-child(5) {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
 .orderItemGiftRow td {
   background: #f7faf7;
 }
@@ -637,7 +663,7 @@
   .orderItemsTable td::before {
     content: attr(data-label);
     flex: 0 0 auto;
-    max-width: 42%;
+    max-width: 28%;
     text-align: left;
     font-size: 0.75rem;
     font-weight: 500;
@@ -658,6 +684,12 @@
 
   .orderItemsTable td:last-child {
     padding-bottom: 0;
+  }
+
+  .orderItemsTable td:nth-child(3),
+  .orderItemsTable td:nth-child(4),
+  .orderItemsTable td:nth-child(5) {
+    white-space: nowrap;
   }
 
   .orderItemGiftRow {

@@ -26,6 +26,7 @@ DO_ADMIN=1
 DO_MIGRATE=1
 DO_PUSH=1
 DO_RSYNC=0
+DO_FORCE_PUSH=0
 COMMIT_MSG=""
 
 usage() {
@@ -37,6 +38,7 @@ Deploy backend + admin: [commit] → git push → pull on VPS → build → syst
   ./deploy/scripts/deploy-backend.sh --admin
   ./deploy/scripts/deploy-backend.sh --skip-push
   ./deploy/scripts/deploy-backend.sh --rsync
+  ./deploy/scripts/deploy-backend.sh --force-push   # заменить origin/main (Saleor → Miraflores)
   ./deploy/scripts/deploy-backend.sh -m "описание"
 
 Config: deploy/deploy.env (MONO_GIT_REMOTE, FRONT_GIT_PUSH_KEY)
@@ -51,6 +53,7 @@ while [[ $# -gt 0 ]]; do
     --skip-migrate) DO_MIGRATE=0 ;;
     --skip-push) DO_PUSH=0 ;;
     --rsync) DO_RSYNC=1; DO_PUSH=0 ;;
+    --force-push) DO_FORCE_PUSH=1 ;;
     -m|--commit)
       [[ $# -ge 2 && -n "${2:-}" && "$2" != -* ]] || { echo "error: $1 требует сообщение" >&2; exit 1; }
       COMMIT_MSG="$2"
@@ -130,7 +133,13 @@ else
 
   if [[ "$DO_PUSH" -eq 1 ]]; then
     require_clean_git "$MONO_ROOT"
-    git_push_dir "$MONO_ROOT"
+    if [[ "$DO_FORCE_PUSH" -eq 1 ]]; then
+      echo ""
+      echo "⚠  --force-push: origin/$DEPLOY_BRANCH будет перезаписан (--force-with-lease)."
+      echo "   Используйте только если remote — старый Saleor / чужая история."
+      echo ""
+    fi
+    git_push_dir "$MONO_ROOT" "$DEPLOY_BRANCH" "$DO_FORCE_PUSH"
   else
     log "skip git push"
   fi
