@@ -172,6 +172,12 @@ export class VariantInputDto {
   @MinLength(1)
   sku?: string;
 
+  /** UUID номенклатуры 1С (CommerceML Ид) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  onecId?: string | null;
+
   @IsInt()
   @Min(0)
   @Type(() => Number)
@@ -521,6 +527,12 @@ export class UpdateVariantDto {
   @IsString()
   @MinLength(1)
   sku?: string;
+
+  /** UUID номенклатуры 1С (CommerceML Ид) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  onecId?: string | null;
 
   @IsOptional()
   @IsInt()

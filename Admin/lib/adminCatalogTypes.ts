@@ -37,6 +37,8 @@ export type AdminVariant = {
   nationalCatalogName: string | null;
   volumeMl: number | null;
   sku: string;
+  /** UUID номенклатуры 1С (техполе) */
+  onecId: string | null;
   price: number;
   compareAt: number | null;
   orderMinQty: number;

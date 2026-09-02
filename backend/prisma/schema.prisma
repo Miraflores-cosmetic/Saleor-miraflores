@@ -316,6 +316,8 @@ model ProductVariant {
   /// Объём, мл
   volumeMl             Int?
   sku                  String    @unique
+  /// UUID номенклатуры в 1С (CommerceML `<Ид>`). Техполе, только админка варианта.
+  onecId               String?   @unique
   price                Int
   compareAt            Int?
   /// Лимиты оформления заказа
@@ -621,11 +623,14 @@ model Order {
   refundedAmount  Int           @default(0)
   /// Когда админ открыл карточку заказа (для badge в sidebar)
   adminViewedAt   DateTime?
+  /// Когда заказ успешно принят 1С (обмен type=sale, mode=success)
+  onecExportedAt  DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   @@index([giftCertificateId])
   @@index([giftPurchaseDenominationId])
+  @@index([onecExportedAt, status])
 }
 
 model OrderItem {

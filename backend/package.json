@@ -14,6 +14,7 @@
     "prisma:seed": "prisma db seed",
     "prisma:import-products": "ts-node --transpile-only prisma/import-products-from-csv.ts",
     "prisma:fix-products": "ts-node --transpile-only prisma/fix-imported-products.ts",
+    "prisma:fill-onec-ids": "ts-node --transpile-only prisma/fill-onec-ids-from-offers.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

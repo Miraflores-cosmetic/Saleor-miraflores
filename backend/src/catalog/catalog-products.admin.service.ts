@@ -394,6 +394,9 @@ export class CatalogProductsAdminService {
       }
       data.sku = await this.uniqueSku(raw, variantId);
     }
+    if (dto.onecId !== undefined) {
+      data.onecId = await this.normalizeOnecId(dto.onecId, variantId);
+    }
 
     const updated = await this.prisma.$transaction(async (tx) => {
       await tx.productVariant.update({
@@ -603,6 +606,11 @@ export class CatalogProductsAdminService {
           tx,
         );
 
+    const onecId =
+      dto.onecId !== undefined
+        ? await this.normalizeOnecId(dto.onecId, undefined, tx)
+        : null;
+
     const variant = await tx.productVariant.create({
       data: {
         productId,
@@ -611,6 +619,7 @@ export class CatalogProductsAdminService {
         nationalCatalogName: trimOrNull(dto.nationalCatalogName),
         volumeMl: dto.volumeMl ?? null,
         sku,
+        onecId,
         price: dto.price,
         compareAt: dto.compareAt ?? null,
         orderMinQty: dto.orderMinQty ?? 1,
@@ -889,5 +898,24 @@ export class CatalogProductsAdminService {
       if (!found || found.id === excludeId) return sku;
       sku = `${base.slice(0, 70)}-${n++}`;
     }
+  }
+
+  /** Пустая строка / null → сброс; иначе unique onecId. */
+  private async normalizeOnecId(
+    value: string | null | undefined,
+    excludeId?: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<string | null> {
+    if (value == null) return null;
+    const raw = value.trim();
+    if (!raw) return null;
+    const onecId = raw.split('#')[0]!.trim().slice(0, 64);
+    if (!onecId) return null;
+    const db = tx ?? this.prisma;
+    const found = await db.productVariant.findUnique({ where: { onecId } });
+    if (found && found.id !== excludeId) {
+      throw new ConflictException(`onecId уже занят другим вариантом: ${onecId}`);
+    }
+    return onecId;
   }
 }

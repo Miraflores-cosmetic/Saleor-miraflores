@@ -89,6 +89,7 @@ export function serializeVariant(
     nationalCatalogName: v.nationalCatalogName,
     volumeMl: v.volumeMl,
     sku: v.sku,
+    onecId: v.onecId,
     price: v.price,
     compareAt: v.compareAt,
     orderMinQty: v.orderMinQty,

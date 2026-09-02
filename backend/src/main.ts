@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
+import { json, raw, urlencoded } from 'express';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
 import { AppModule } from './app.module';
@@ -12,8 +13,19 @@ function backendRootDir(): string {
 }
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // bodyParser: false — сами ставим raw для 1С-обмена, json для остального
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
   const config = app.get(ConfigService);
+
+  // CommerceML file upload (Битрикс-протокол): сырое тело
+  app.use(
+    '/api/v1/1c/exchange',
+    raw({ type: '*/*', limit: '50mb' }),
+  );
+  app.use(json({ limit: '2mb' }));
+  app.use(urlencoded({ extended: true, limit: '2mb' }));
 
   // За reverse-proxy (nginx): req.ip / Throttler видят реальный клиент из X-Forwarded-For.
   const trustProxy = config.get<string>('TRUST_PROXY')?.trim();

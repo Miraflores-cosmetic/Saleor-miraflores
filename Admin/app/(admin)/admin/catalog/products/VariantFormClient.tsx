@@ -114,6 +114,7 @@ export function VariantFormClient({
   const [packageVolume, setPackageVolume] = useState('');
   const [volumeManual, setVolumeManual] = useState(false);
   const [sku, setSku] = useState('');
+  const [onecId, setOnecId] = useState('');
   const [stock, setStock] = useState('0');
   const [stockReserve, setStockReserve] = useState('0');
   const [active, setActive] = useState(true);
@@ -205,6 +206,7 @@ export function VariantFormClient({
     setPackageVolume(v.packageVolume != null ? String(v.packageVolume) : '');
     setVolumeManual(v.packageVolume != null);
     setSku(v.sku);
+    setOnecId(v.onecId ?? '');
     setStock(String(v.stock));
     setStockReserve(String(v.stockReserve ?? 0));
     setActive(v.active);
@@ -259,6 +261,7 @@ export function VariantFormClient({
         heightMm: parseOptionalInt(heightMm, 'Высота, мм'),
         packageVolume: parseOptionalFloat(packageVolume, 'Объём упаковки'),
         sku: sku.trim() || undefined,
+        onecId: onecId.trim() || null,
         stock: parseOptionalInt(stock, 'Остаток') ?? 0,
         stockReserve: parseOptionalInt(stockReserve, 'Резерв') ?? 0,
         active,
@@ -677,6 +680,18 @@ export function VariantFormClient({
                 setSku(e.target.value);
               }}
               placeholder={isEdit ? undefined : 'пусто → авто'}
+            />
+          </div>
+
+          <div className={pn.placementBlock}>
+            <AdminTextField
+              label="1С UUID (onecId)"
+              value={onecId}
+              onChange={(e) => {
+                markDirty();
+                setOnecId(e.target.value);
+              }}
+              placeholder="UUID из выгрузки 1С"
             />
           </div>
 

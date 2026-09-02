@@ -52,7 +52,7 @@ verify_deploy_ssh() {
     echo "Один раз добавьте ключ (просит пароль root):" >&2
     echo "  ssh-copy-id -i ${key}.pub $DEPLOY_HOST" >&2
     echo "" >&2
-    echo "Или задеплойте вручную на сервере (см. deploy/README.md)." >&2
+    echo "Или задеплойте вручную на сервере (см. deploy.md)." >&2
     exit 1
   fi
 }
