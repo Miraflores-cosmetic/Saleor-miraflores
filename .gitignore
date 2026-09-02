@@ -3,7 +3,10 @@ Front/
 
 # Saleor / legacy junk в корне (не часть Miraflores 3.0)
 static/
+saleor-dashboard/
 uv.lock
+nginx-system-http.conf
+nginx-system-https.conf
 
 node_modules/
 **/node_modules/
