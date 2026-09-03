@@ -152,6 +152,8 @@ export type FetchPublicProductsOpts = {
   priceMin?: number;
   priceMax?: number;
   sale?: boolean;
+  /** Batch by slug (search hydrate). */
+  slugs?: string[];
 };
 
 export type PublicProductsPage = {
@@ -174,8 +176,26 @@ export async function fetchPublicProductsPage(
   if (opts.priceMin != null) params.set('priceMin', String(opts.priceMin));
   if (opts.priceMax != null) params.set('priceMax', String(opts.priceMax));
   if (opts.sale) params.set('sale', '1');
+  if (opts.slugs?.length) params.set('slugs', opts.slugs.join(','));
   const qs = params.toString();
   return publicGet<PublicProductsPage>(`catalog/products${qs ? `?${qs}` : ''}`);
+}
+
+export type PublicSearchHit = {
+  id: string;
+  title: string;
+  href: string;
+  subtitle?: string | null;
+  imageUrl?: string | null;
+};
+
+export async function fetchPublicSearch(q: string): Promise<{
+  q: string;
+  groups: Array<{ key: string; label: string; items: PublicSearchHit[] }>;
+} | null> {
+  const trimmed = q.trim();
+  if (!trimmed) return { q: '', groups: [] };
+  return publicGet(`search?q=${encodeURIComponent(trimmed)}`);
 }
 
 export async function fetchPublicProducts(
@@ -211,7 +231,16 @@ export const fetchPublicCatalogTags = cache(async (): Promise<PublicCatalogTag[]
   return data?.items ?? [];
 });
 
+/** Полные карточки товаров в коллекциях (витрина home). */
 export const fetchPublicCollections = cache(async (): Promise<PublicCollectionCard[]> => {
+  const data = await publicGet<{ items: PublicCollectionCard[] }>(
+    'catalog/collections?includeProducts=1',
+  );
+  return data?.items ?? [];
+});
+
+/** Только meta (slug/name) — PLP title / unknown_collection. */
+export const fetchPublicCollectionsMeta = cache(async (): Promise<PublicCollectionCard[]> => {
   const data = await publicGet<{ items: PublicCollectionCard[] }>('catalog/collections');
   return data?.items ?? [];
 });
@@ -219,7 +248,7 @@ export const fetchPublicCollections = cache(async (): Promise<PublicCollectionCa
 export async function fetchPublicCollection(
   slug: string,
 ): Promise<PublicCollectionCard | null> {
-  const items = await fetchPublicCollections();
+  const items = await fetchPublicCollectionsMeta();
   return items.find((c) => c.slug === slug) ?? null;
 }
 

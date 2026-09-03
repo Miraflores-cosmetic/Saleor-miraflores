@@ -133,6 +133,10 @@ SHA='$SHA'
 FRONT="\$DEPLOY_PATH/Front"
 mkdir -p "\$FRONT"
 
+# Файлы могли быть залиты rsync под другим uid → git ругается на ownership
+git config --global --add safe.directory "\$FRONT" 2>/dev/null || true
+git config --global --add safe.directory '$DEPLOY_PATH' 2>/dev/null || true
+
 if [[ ! -d "\$FRONT/.git" ]]; then
   echo "==> clone Front (первый раз)"
   rm -rf "\$FRONT"

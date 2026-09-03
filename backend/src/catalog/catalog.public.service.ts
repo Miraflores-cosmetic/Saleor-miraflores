@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { DiscountsPublicService } from '../discounts/discounts-public.service';
 import {
@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PUBLIC_PRODUCTS_DEFAULT_LIMIT,
+  PUBLIC_PRODUCTS_IN_MEMORY_MAX,
   PUBLIC_PRODUCTS_MAX_LIMIT,
 } from './catalog.constants';
 import {
@@ -153,6 +154,8 @@ function applyCampaignToCards(cards: ProductCard[], campaigns: CampaignIn[]): Pr
 
 @Injectable()
 export class CatalogPublicService {
+  private readonly logger = new Logger(CatalogPublicService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly discountsPublic: DiscountsPublicService,
@@ -319,12 +322,44 @@ export class CatalogPublicService {
     priceMin?: number;
     priceMax?: number;
     saleOnly?: boolean;
+    /** Batch by slug (order preserved). Ignores other filters when set. */
+    slugs?: string[];
   }) {
     const page = Math.max(1, opts?.page ?? 1);
     const limit = Math.min(
       PUBLIC_PRODUCTS_MAX_LIMIT,
       Math.max(1, opts?.limit ?? PUBLIC_PRODUCTS_DEFAULT_LIMIT),
     );
+
+    if (opts?.slugs?.length) {
+      const seen = new Set<string>();
+      const slugs: string[] = [];
+      for (const raw of opts.slugs) {
+        const s = raw.trim();
+        if (!s || seen.has(s)) continue;
+        seen.add(s);
+        slugs.push(s);
+        if (slugs.length >= PUBLIC_PRODUCTS_MAX_LIMIT) break;
+      }
+      const campaigns = await this.discountsPublic.loadRunningCampaigns();
+      const rows = await this.prisma.product.findMany({
+        where: {
+          active: true,
+          excludeFromCatalog: false,
+          slug: { in: slugs },
+        },
+        select: productCardSelect,
+      });
+      const bySlug = new Map(rows.map((r) => [r.slug, r]));
+      const ordered = slugs.flatMap((s) => {
+        const p = bySlug.get(s);
+        return p ? [p] : [];
+      });
+      const items = applyCampaignToCards(ordered.map(toProductCard), campaigns).map(
+        stripCategoryId,
+      );
+      return { items, total: items.length, page: 1, limit: slugs.length };
+    }
 
     const where: Prisma.ProductWhereInput = {
       active: true,
@@ -466,6 +501,7 @@ export class CatalogPublicService {
     }
 
     let allRows: ProductCardSource[];
+    const poolTake = PUBLIC_PRODUCTS_IN_MEMORY_MAX + 1;
 
     if (useCollectionSort && collectionId) {
       const productWhere: Prisma.ProductWhereInput = { ...where };
@@ -473,6 +509,7 @@ export class CatalogPublicService {
       const itemRows = await this.prisma.collectionItem.findMany({
         where: { collectionId, product: productWhere },
         orderBy: { sortOrder: 'asc' },
+        take: poolTake,
         include: { product: { select: productCardSelect } },
       });
       allRows = itemRows.map((it) => it.product).filter(Boolean);
@@ -480,8 +517,20 @@ export class CatalogPublicService {
       allRows = await this.prisma.product.findMany({
         where,
         orderBy: sort === 'name' ? { name: 'asc' } : { createdAt: 'desc' },
+        take: poolTake,
         select: productCardSelect,
       });
+    }
+
+    const poolTruncated = allRows.length > PUBLIC_PRODUCTS_IN_MEMORY_MAX;
+    if (poolTruncated) {
+      allRows = allRows.slice(0, PUBLIC_PRODUCTS_IN_MEMORY_MAX);
+      this.logger.warn(
+        `TODO(scale) listProducts in-memory pool truncated at ${PUBLIC_PRODUCTS_IN_MEMORY_MAX} ` +
+          `(sale=${Boolean(opts?.saleOnly)} priceMin=${opts?.priceMin ?? '-'} ` +
+          `priceMax=${opts?.priceMax ?? '-'} sort=${sort}). ` +
+          `Denorm cardPrice/onSale + SQL pagination.`,
+      );
     }
 
     let cards = applyCampaignToCards(allRows.map(toProductCard), campaigns);
@@ -498,8 +547,6 @@ export class CatalogPublicService {
     if (sort === 'price_asc') cards.sort((a, b) => a.price - b.price);
     else if (sort === 'price_desc') cards.sort((a, b) => b.price - a.price);
     else if (sort === 'popular') {
-      // TODO(scale): in-memory full scan — ok для малого каталога;
-      // при росте — denorm minPrice/popularity + SQL ORDER BY / cursor.
       cards.sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0));
     }
 
@@ -507,10 +554,44 @@ export class CatalogPublicService {
     const pageItems = cards
       .slice((page - 1) * limit, page * limit)
       .map(stripCategoryId);
-    return { items: pageItems, total, page, limit };
+    return { items: pageItems, total, page, limit, truncated: poolTruncated };
   }
 
-  async listCollections() {
+  /**
+   * По умолчанию — метаданные (чипы каталога).
+   * `includeProducts: true` — полные карточки (витрина Admin home).
+   */
+  async listCollections(opts?: { includeProducts?: boolean }) {
+    const includeProducts = opts?.includeProducts === true;
+
+    if (!includeProducts) {
+      const rows = await this.prisma.collection.findMany({
+        where: { active: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          shortDescription: true,
+          coverImageUrl: true,
+          featuredLayout: true,
+          productPreviewUrl: true,
+        },
+      });
+      return {
+        items: rows.map((c) => ({
+          id: c.id,
+          slug: c.slug,
+          name: c.name,
+          shortDescription: c.shortDescription,
+          coverImageUrl: c.coverImageUrl,
+          featuredLayout: c.featuredLayout,
+          productPreviewUrl: c.productPreviewUrl?.trim() || null,
+          products: [] as Array<Omit<ProductCard, 'categoryId'>>,
+        })),
+      };
+    }
+
     const rows = await this.prisma.collection.findMany({
       where: { active: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -560,6 +641,7 @@ export class CatalogPublicService {
         name: true,
         slug: true,
         parentId: true,
+        coverImageUrl: true,
         products: {
           where: { active: true, excludeFromCatalog: false },
           take: 1,
@@ -575,9 +657,6 @@ export class CatalogPublicService {
       },
     });
 
-    const preview = (r: (typeof rows)[number]) =>
-      r.products[0]?.images[0]?.url ?? null;
-
     const roots = rows.filter((r) => !r.parentId);
     const byParent = new Map<string, typeof rows>();
     for (const r of rows) {
@@ -586,6 +665,19 @@ export class CatalogPublicService {
       arr.push(r);
       byParent.set(r.parentId, arr);
     }
+
+    /** Bubbles: admin cover → own product image → first descendant product image. */
+    const preview = (r: (typeof rows)[number]): string | null => {
+      const cover = r.coverImageUrl?.trim();
+      if (cover) return cover;
+      const own = r.products[0]?.images[0]?.url;
+      if (own) return own;
+      for (const child of byParent.get(r.id) ?? []) {
+        const fromChild = preview(child);
+        if (fromChild) return fromChild;
+      }
+      return null;
+    };
 
     return {
       items: (roots.length ? roots : rows).map((c) => ({
@@ -850,4 +942,139 @@ export class CatalogPublicService {
       campaignDiscountTotal: priced.campaignDiscountTotal,
     };
   }
+
+  /**
+   * HTML с title/canonical/OG для шаринг-ботов (Telegram/VK), без JS.
+   * Nginx: User-Agent share-bot → этот URL.
+   */
+  async renderOpenGraphHtml(opts: {
+    path: string;
+    collection: string;
+    tag: string;
+    q: string;
+  }): Promise<string> {
+    const seo = await this.prisma.siteSettings.findUnique({
+      where: { id: 'default' },
+      select: {
+        siteUrl: true,
+        titleSuffix: true,
+        defaultMetaDescription: true,
+        defaultOgImageUrl: true,
+      },
+    });
+    const origin = (seo?.siteUrl || '').replace(/\/+$/, '') || 'https://miraflores-shop.com';
+    const suffix = seo?.titleSuffix?.trim() || 'Miraflores';
+
+    const rawPath = opts.path.split('?')[0] || '/catalog';
+    const parts = rawPath.split('/').filter(Boolean);
+    const cat = parts[0] === 'catalog' ? (parts[1] ?? '') : '';
+    const sub = parts[0] === 'catalog' ? (parts[2] ?? '') : '';
+
+    let label = 'Каталог';
+    let image = seo?.defaultOgImageUrl?.trim() || '';
+    let noIndex = Boolean(opts.q);
+
+    if (opts.q) {
+      label = `Поиск: ${opts.q}`;
+    } else if (opts.collection) {
+      const col = await this.prisma.collection.findFirst({
+        where: { slug: opts.collection, active: true },
+        select: { name: true, coverImageUrl: true, productPreviewUrl: true },
+      });
+      if (col) {
+        label = col.name;
+        image = col.coverImageUrl || col.productPreviewUrl || image;
+      }
+    } else if (opts.tag) {
+      const tag = await this.prisma.catalogTag.findFirst({
+        where: { slug: opts.tag },
+        select: { name: true, coverImageUrl: true },
+      });
+      if (tag) {
+        label = tag.name;
+        image = tag.coverImageUrl || image;
+      }
+    } else if (cat) {
+      const rows = await this.prisma.category.findMany({
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          parentId: true,
+          coverImageUrl: true,
+        },
+      });
+      const root = rows.find((r) => r.slug === cat && !r.parentId);
+      if (root) {
+        label = root.name;
+        image = root.coverImageUrl || image;
+        if (sub) {
+          const children = rows.filter((r) => r.parentId === root.id);
+          const l2 = children.find((r) => r.slug === sub);
+          const l3 = children
+            .flatMap((ch) => rows.filter((r) => r.parentId === ch.id && r.slug === sub))
+            .at(0);
+          const leaf = l2 ?? l3;
+          if (leaf) {
+            label = leaf.name;
+            image = leaf.coverImageUrl || image;
+          }
+        }
+      }
+    }
+
+    const title = `${label} — ${suffix}`;
+    const desc =
+      (opts.q
+        ? `Результаты поиска «${opts.q}» в каталоге ${suffix}`
+        : `Купить ${label.toLowerCase()} в ${suffix}`) ||
+      seo?.defaultMetaDescription ||
+      title;
+
+    const seoQs = new URLSearchParams();
+    if (opts.collection) seoQs.set('collection', opts.collection);
+    if (opts.tag) seoQs.set('tag', opts.tag);
+    let canonPath = '/catalog';
+    if (cat) {
+      canonPath += `/${encodeURIComponent(cat)}`;
+      if (sub) canonPath += `/${encodeURIComponent(sub)}`;
+    }
+    const canonical = `${origin}${canonPath}${seoQs.toString() ? `?${seoQs}` : ''}`;
+    const absImage =
+      image && image.startsWith('/')
+        ? `${origin}${image}`
+        : image;
+
+    const e = escapeHtml;
+    return `<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<title>${e(title)}</title>
+<meta name="description" content="${e(desc)}"/>
+${noIndex ? '<meta name="robots" content="noindex,follow"/>' : ''}
+<link rel="canonical" href="${e(canonical)}"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="${e(title)}"/>
+<meta property="og:description" content="${e(desc)}"/>
+<meta property="og:url" content="${e(canonical)}"/>
+${absImage ? `<meta property="og:image" content="${e(absImage)}"/>` : ''}
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="${e(title)}"/>
+<meta name="twitter:description" content="${e(desc)}"/>
+</head>
+<body>
+<h1>${e(label)}</h1>
+<p><a href="${e(canonical)}">Открыть каталог</a></p>
+</body>
+</html>`;
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

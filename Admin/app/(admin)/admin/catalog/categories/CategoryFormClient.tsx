@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminCompactBtn, AdminCompactBtnLink } from '@/components/AdminCompactBtn/AdminCompactBtn';
+import {
+  AdminSortableTable,
+  DragHandleCell,
+} from '@/components/admin/AdminSortableTable/AdminSortableTable';
 import { AdminTabs } from '@/components/AdminTabs/AdminTabs';
 import { AdminTextField } from '@/components/AdminTextField/AdminTextField';
 import {
@@ -126,6 +130,33 @@ export function CategoryFormClient({ categoryId }: { categoryId?: string }) {
         .slice()
         .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'ru')),
     [allCategories, categoryId],
+  );
+
+  const runChildReorder = useCallback(
+    async (orderedIds: string[]) => {
+      if (!categoryId) return;
+      setAllCategories((prev) => {
+        const next = [...prev];
+        orderedIds.forEach((id, sortOrder) => {
+          const i = next.findIndex((x) => x.id === id);
+          if (i >= 0) next[i] = { ...next[i], sortOrder };
+        });
+        return next;
+      });
+      try {
+        await adminBackendJson('catalog/admin/categories/reorder', {
+          method: 'POST',
+          body: JSON.stringify({ parentId: categoryId, orderedIds }),
+        });
+        await revalidateCatalogStorefront();
+      } catch (e) {
+        alert(
+          e instanceof AdminBackendRequestError ? e.message : 'Не удалось сохранить порядок',
+        );
+        await loadTabsData();
+      }
+    },
+    [categoryId, loadTabsData],
   );
 
   async function onCoverFile(file: File | null) {
@@ -315,28 +346,31 @@ export function CategoryFormClient({ categoryId }: { categoryId?: string }) {
             childCategories.length === 0 ? (
               <p className={styles.muted}>Подкатегорий нет</p>
             ) : (
-              <div className={styles.tableWrap}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Название</th>
-                      <th>Товары</th>
-                      <th>Подкат.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {childCategories.map((c) => (
-                      <tr key={c.id}>
-                        <td>
-                          <Link href={`/admin/catalog/categories/${c.id}`}>{c.name}</Link>
-                        </td>
-                        <td>{c.productCount ?? 0}</td>
-                        <td>{c.childrenCount ?? 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <AdminSortableTable
+                ids={childCategories.map((c) => c.id)}
+                onReorder={(orderedIds) => void runChildReorder(orderedIds)}
+                head={
+                  <tr>
+                    <th style={{ width: 36 }} aria-label="Порядок" />
+                    <th>Название</th>
+                    <th>Товары</th>
+                    <th>Подкат.</th>
+                  </tr>
+                }
+                renderRow={(id, drag) => {
+                  const c = childCategories.find((x) => x.id === id)!;
+                  return (
+                    <>
+                      <DragHandleCell {...drag} />
+                      <td>
+                        <Link href={`/admin/catalog/categories/${c.id}`}>{c.name}</Link>
+                      </td>
+                      <td>{c.productCount ?? 0}</td>
+                      <td>{c.childrenCount ?? 0}</td>
+                    </>
+                  );
+                }}
+              />
             )
           ) : null}
 

@@ -162,6 +162,8 @@ REMOTE='$MONO_REMOTE'
 SHA='$SHA'
 
 if [[ "\$DO_RSYNC" -ne 1 ]]; then
+  # Файлы могли быть залиты rsync под другим uid → git ругается на ownership
+  git config --global --add safe.directory '$DEPLOY_PATH' 2>/dev/null || true
   if [[ ! -d .git ]]; then
     echo "==> git init (первый раз в \$PWD)"
     git init -b "\$BRANCH"

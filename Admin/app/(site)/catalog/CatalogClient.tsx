@@ -15,6 +15,7 @@ import { CatalogBubbles } from './CatalogBubbles';
 import { CatalogFilters } from './CatalogFilters';
 import { CatalogPager } from './CatalogPager';
 import { catalogHref } from './catalogHref';
+import { findSubcategoryChainInRoot } from './catalogLoad';
 import styles from './CatalogPage.module.css';
 
 export type CatalogNotice =
@@ -37,6 +38,8 @@ type InitialState = {
   sale: boolean;
   priceMin: number | null;
   priceMax: number | null;
+  q: string;
+  title: string;
 };
 
 function productsWord(n: number): string {
@@ -63,11 +66,11 @@ export function CatalogClient({
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
 
-  // cat/sub приходят из path (/catalog/[cat]/[sub]), не из query
   const cat = initial.cat;
   const sub = initial.sub;
   const tag = searchParams.get('tag') ?? initial.tag;
   const collection = searchParams.get('collection') ?? initial.collection;
+  const q = searchParams.get('q')?.trim() || initial.q || '';
   const sale = (searchParams.get('sale') ?? (initial.sale ? '1' : '')) === '1';
   const priceMinRaw = searchParams.get('priceMin');
   const priceMaxRaw = searchParams.get('priceMax');
@@ -84,13 +87,10 @@ export function CatalogClient({
     ? selectedRoot.children ?? []
     : categories;
 
-  const title = collection
-    ? initial.collectionName ?? collection
-    : selectedRoot
-      ? sub
-        ? selectedRoot.children?.find((c) => c.slug === sub)?.name ?? selectedRoot.name
-        : selectedRoot.name
-      : 'Каталог';
+  const title = initial.title || (q ? `Поиск: ${q}` : 'Каталог');
+  const subChain = selectedRoot && sub
+    ? findSubcategoryChainInRoot(selectedRoot, sub)
+    : [];
 
   const pageSize = initial.limit || PUBLIC_CATALOG_PAGE_SIZE;
 
@@ -128,7 +128,7 @@ export function CatalogClient({
           <nav className={styles.crumbs} aria-label="Навигация">
             <Link href="/">Главная</Link>
             <span aria-hidden> / </span>
-            {collection ? (
+            {collection || q ? (
               <>
                 <Link href="/catalog" className={styles.crumbBtn}>
                   Каталог
@@ -142,7 +142,9 @@ export function CatalogClient({
                   Каталог
                 </Link>
                 <span aria-hidden> / </span>
-                {sub ? (
+                {subChain.length === 0 ? (
+                  <span>{selectedRoot.name}</span>
+                ) : (
                   <>
                     <Link
                       href={catalogHref(searchParams, { sub: null }, path)}
@@ -150,12 +152,38 @@ export function CatalogClient({
                     >
                       {selectedRoot.name}
                     </Link>
-                    <span aria-hidden> / </span>
-                    <span>{title}</span>
+                    {subChain.map((node, i) => {
+                      const isLast = i === subChain.length - 1;
+                      return (
+                        <span key={node.slug}>
+                          <span aria-hidden> / </span>
+                          {isLast ? (
+                            <span>{node.name}</span>
+                          ) : (
+                            <Link
+                              href={catalogHref(
+                                searchParams,
+                                { sub: node.slug },
+                                { cat: selectedRoot.slug },
+                              )}
+                              className={styles.crumbBtn}
+                            >
+                              {node.name}
+                            </Link>
+                          )}
+                        </span>
+                      );
+                    })}
                   </>
-                ) : (
-                  <span>{selectedRoot.name}</span>
                 )}
+              </>
+            ) : tag ? (
+              <>
+                <Link href="/catalog" className={styles.crumbBtn}>
+                  Каталог
+                </Link>
+                <span aria-hidden> / </span>
+                <span>{title}</span>
               </>
             ) : (
               <span>Каталог</span>
@@ -166,14 +194,16 @@ export function CatalogClient({
       </section>
 
       <div className={`padding-global ${styles.body}`}>
-        <CatalogBubbles
-          bubbles={bubbles}
-          selectedRoot={selectedRoot}
-          cat={cat}
-          sub={sub}
-          searchParams={searchParams}
-          path={path}
-        />
+        {!q ? (
+          <CatalogBubbles
+            bubbles={bubbles}
+            selectedRoot={selectedRoot}
+            cat={cat}
+            sub={sub}
+            searchParams={searchParams}
+            path={path}
+          />
+        ) : null}
 
         <div className={styles.toolbar}>
           <p className={styles.count} aria-live="polite">
@@ -183,20 +213,22 @@ export function CatalogClient({
           </p>
         </div>
 
-        <CatalogFilters
-          tags={tags}
-          tag={tag}
-          sale={sale}
-          priceMin={priceMin}
-          priceMax={priceMax}
-          showClearCategory={Boolean(selectedRoot || collection)}
-          clearCategoryLabel={
-            collection ? 'сбросить коллекцию' : 'сбросить категорию'
-          }
-          searchParams={searchParams}
-          path={path}
-          patchParams={patchParams}
-        />
+        {!q ? (
+          <CatalogFilters
+            tags={tags}
+            tag={tag}
+            sale={sale}
+            priceMin={priceMin}
+            priceMax={priceMax}
+            showClearCategory={Boolean(selectedRoot || collection)}
+            clearCategoryLabel={
+              collection ? 'сбросить коллекцию' : 'сбросить категорию'
+            }
+            searchParams={searchParams}
+            path={path}
+            patchParams={patchParams}
+          />
+        ) : null}
 
         <div className={styles.grid} data-pending={pending || undefined}>
           {notice === 'api' ? (
@@ -237,6 +269,7 @@ export function CatalogClient({
                     sale: null,
                     priceMin: null,
                     priceMax: null,
+                    q: null,
                   },
                   path,
                 )}

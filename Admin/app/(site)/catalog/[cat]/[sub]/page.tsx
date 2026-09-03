@@ -12,9 +12,16 @@ type Props = {
 
 export async function generateStaticParams() {
   const categories = await fetchPublicCategories();
-  return categories.flatMap((c) =>
-    (c.children ?? []).map((ch) => ({ cat: c.slug, sub: ch.slug })),
-  );
+  const params: { cat: string; sub: string }[] = [];
+  for (const c of categories) {
+    for (const ch of c.children ?? []) {
+      params.push({ cat: c.slug, sub: ch.slug });
+      for (const gr of ch.children ?? []) {
+        params.push({ cat: c.slug, sub: gr.slug });
+      }
+    }
+  }
+  return params;
 }
 
 export async function generateMetadata({

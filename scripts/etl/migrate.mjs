@@ -19,6 +19,8 @@
  *   node migrate.mjs --apply --step=users      # buyers (passwordHash=null → claim via password-reset)
  *   node migrate.mjs --apply --step=addresses  # UserAddress (needs users)
  *   node migrate.mjs --apply --step=quiz       # UserQuizResult from metadata.quiz_face_latest
+ *   node migrate.mjs --apply --step=quiz-content # QuizContentEntry from page konetent-kviza
+ *   node migrate.mjs --apply --step=variant-media # ProductVariantImage from product_variantmedia
  *   node migrate.mjs --apply --step=variant-dimensions  # weight + L/W/H + volume
  *   node migrate.mjs --apply --step=gratitude           # tiers, rules, photos
  *
@@ -1041,10 +1043,42 @@ function safeExt(urlOrPath) {
   return ".jpg";
 }
 
+function assertImageBuffer(buf, label) {
+  if (!buf || buf.length < 24) {
+    throw new Error(`too small (${buf?.length ?? 0}) for ${label}`);
+  }
+  const head = buf.subarray(0, 64).toString("utf8").trimStart().toLowerCase();
+  if (head.startsWith("<!doctype") || head.startsWith("<html") || head.startsWith("<?xml")) {
+    throw new Error(`got HTML instead of image for ${label}`);
+  }
+  const b0 = buf[0];
+  const b1 = buf[1];
+  const b2 = buf[2];
+  const b3 = buf[3];
+  const jpeg = b0 === 0xff && b1 === 0xd8 && b2 === 0xff;
+  const png = b0 === 0x89 && b1 === 0x50 && b2 === 0x4e && b3 === 0x47;
+  const gif = b0 === 0x47 && b1 === 0x49 && b2 === 0x46;
+  const webp =
+    b0 === 0x52 &&
+    b1 === 0x49 &&
+    b2 === 0x46 &&
+    b3 === 0x46 &&
+    buf.length >= 12 &&
+    buf.subarray(8, 12).toString("ascii") === "WEBP";
+  if (!jpeg && !png && !gif && !webp) {
+    throw new Error(`unrecognized image magic for ${label}`);
+  }
+}
+
 async function downloadTo(url, destPath) {
   const res = await fetch(url, { redirect: "follow" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  if (ct.includes("text/html") || ct.includes("application/json")) {
+    throw new Error(`bad content-type ${ct} for ${url}`);
+  }
   const buf = Buffer.from(await res.arrayBuffer());
+  assertImageBuffer(buf, url);
   mkdirSync(dirname(destPath), { recursive: true });
   writeFileSync(destPath, buf);
   return buf.length;
@@ -1210,6 +1244,163 @@ async function applyMedia() {
 
   console.log(
     `[media] linked=${linked} downloaded=${downloaded} copied=${copied} productsWithoutMedia=${missing}`,
+  );
+
+  // Variant galleries depend on ProductImage order matching Saleor media sort.
+  await applyVariantMedia();
+}
+
+// ─── variant media (Saleor product_variantmedia → ProductVariantImage) ───
+
+async function planVariantMedia() {
+  const { rows } = await saleor.query(`
+    SELECT COUNT(*)::int AS n FROM product_variantmedia
+  `);
+  console.log(`\n[variant-media] saleor links=${rows[0].n}`);
+}
+
+/**
+ * Map Saleor variant↔media to Jcos ProductVariantImage.
+ * Assumes ProductImage.sortOrder aligns with Saleor product_productmedia order
+ * (same as --step=media dump path). GraphQL-only galleries with matching counts
+ * usually keep the same order.
+ */
+async function applyVariantMedia() {
+  await ensureEtlMap();
+  await planVariantMedia();
+
+  const { rows: dumpMedia } = await saleor.query(`
+    SELECT
+      pm.id AS media_id,
+      pm.product_id,
+      COALESCE(pm.sort_order, 0) AS sort_order,
+      pm.id AS tie
+    FROM product_productmedia pm
+    WHERE pm.image IS NOT NULL AND btrim(pm.image) <> ''
+    ORDER BY pm.product_id, sort_order, pm.id
+  `);
+
+  /** media_id → { productId, sortOrder, index } */
+  const mediaIndex = new Map();
+  /** saleor product_id → ordered media rows (for index fallback) */
+  const mediaOrderByProduct = new Map();
+  for (const r of dumpMedia) {
+    const pid = String(r.product_id);
+    const arr = mediaOrderByProduct.get(pid) ?? [];
+    arr.push(r);
+    mediaOrderByProduct.set(pid, arr);
+  }
+  for (const [pid, rows] of mediaOrderByProduct) {
+    rows.forEach((r, index) => {
+      mediaIndex.set(String(r.media_id), {
+        productId: pid,
+        sortOrder: Number(r.sort_order) || 0,
+        index,
+      });
+    });
+  }
+
+  const { rows: variantLinks } = await saleor.query(`
+    SELECT vm.variant_id, vm.media_id
+    FROM product_variantmedia vm
+    ORDER BY vm.variant_id, vm.id
+  `);
+
+  const { rows: productMap } = await jcos.query(`
+    SELECT "saleorId", "jcosId" FROM "_EtlIdMap" WHERE entity = 'Product'
+  `);
+  const { rows: variantMap } = await jcos.query(`
+    SELECT "saleorId", "jcosId" FROM "_EtlIdMap" WHERE entity = 'ProductVariant'
+  `);
+  const productBySaleor = new Map(productMap.map((r) => [r.saleorId, r.jcosId]));
+  const variantBySaleor = new Map(variantMap.map((r) => [r.saleorId, r.jcosId]));
+
+  const { rows: images } = await jcos.query(`
+    SELECT id, "productId", "sortOrder"
+    FROM "ProductImage"
+    ORDER BY "productId", "sortOrder", id
+  `);
+  /** jcos productId → Map(sortOrder → imageId) + ordered ids fallback */
+  const imagesByProductSort = new Map();
+  const imagesByProductOrdered = new Map();
+  for (const img of images) {
+    let bySort = imagesByProductSort.get(img.productId);
+    if (!bySort) {
+      bySort = new Map();
+      imagesByProductSort.set(img.productId, bySort);
+    }
+    bySort.set(img.sortOrder, img.id);
+    const arr = imagesByProductOrdered.get(img.productId) ?? [];
+    arr.push(img.id);
+    imagesByProductOrdered.set(img.productId, arr);
+  }
+
+  /** variantId → { productImageId, sortOrder }[] */
+  const byVariant = new Map();
+  let missingVariant = 0;
+  let missingProduct = 0;
+  let missingImage = 0;
+  let linked = 0;
+
+  for (const row of variantLinks) {
+    const jVariantId = variantBySaleor.get(String(row.variant_id));
+    if (!jVariantId) {
+      missingVariant++;
+      continue;
+    }
+    const meta = mediaIndex.get(String(row.media_id));
+    if (!meta) {
+      missingImage++;
+      continue;
+    }
+    const jProductId = productBySaleor.get(meta.productId);
+    if (!jProductId) {
+      missingProduct++;
+      continue;
+    }
+    const bySort = imagesByProductSort.get(jProductId);
+    let productImageId = bySort?.get(meta.sortOrder) ?? null;
+    if (!productImageId) {
+      // Fallback: positional if sortOrder gaps (deleted broken files).
+      productImageId = (imagesByProductOrdered.get(jProductId) ?? [])[meta.index] ?? null;
+    }
+    if (!productImageId) {
+      missingImage++;
+      continue;
+    }
+    const list = byVariant.get(jVariantId) ?? [];
+    if (!list.some((x) => x.productImageId === productImageId)) {
+      list.push({ productImageId, sortOrder: list.length });
+      byVariant.set(jVariantId, list);
+      linked++;
+    }
+  }
+
+  if (!apply) {
+    console.log(
+      `[variant-media] would link=${linked} variants=${byVariant.size} missingVariant=${missingVariant} missingProduct=${missingProduct} missingImage=${missingImage}`,
+    );
+    return;
+  }
+
+  // Replace all variant galleries (ETL is source of truth from Saleor).
+  await jcos.query(`DELETE FROM "ProductVariantImage"`);
+
+  let inserted = 0;
+  for (const [variantId, list] of byVariant) {
+    for (const item of list) {
+      await jcos.query(
+        `INSERT INTO "ProductVariantImage" (id, "variantId", "productImageId", "sortOrder")
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT ("variantId", "productImageId") DO UPDATE SET "sortOrder" = EXCLUDED."sortOrder"`,
+        [newId(), variantId, item.productImageId, item.sortOrder],
+      );
+      inserted++;
+    }
+  }
+
+  console.log(
+    `[variant-media] inserted=${inserted} variants=${byVariant.size} missingVariant=${missingVariant} missingProduct=${missingProduct} missingImage=${missingImage}`,
   );
 }
 
@@ -2656,6 +2847,213 @@ async function applyQuiz() {
   );
 }
 
+// ─── quiz CMS content (Saleor page konetent-kviza → QuizContentEntry) ───
+
+/** Saleor slug (typo preserved) + page type slug. */
+const QUIZ_CONTENT_SALEOR_SLUG = "konetent-kviza";
+const QUIZ_CONTENT_PAGE_TYPE_SLUG = "kontent-kviza";
+
+/**
+ * Known text keys we import into QuizContentEntry.
+ * Media keys (file_*) are not on this Saleor page — skip.
+ */
+const QUIZ_CONTENT_IMPORT_KEYS = new Set([
+  "greeting",
+  "choose_care",
+  "menu_face_hello",
+  "face_q_age",
+  "face_q_spf",
+  "face_q_skin",
+  "face_q_skin2",
+  "face_q_edema",
+  "face_selfi",
+  "hair_cleansing",
+  "hair_care",
+  "face_steps",
+  "face_study",
+  "end_face_care",
+  "step_1_spf",
+  "step_1_nospf",
+  "no_answers",
+  "other_steps_1",
+  "other_steps_2",
+  "other_steps_3",
+  "other_steps_4",
+  "other_steps_5",
+  "other_steps_6",
+  "other_steps_7",
+  "other_steps_8_1",
+  "other_steps_8_2",
+  "face_edema",
+  "face_edema2",
+]);
+
+function htmlToPlainText(html) {
+  if (!html) return "";
+  return String(html)
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<\/h[1-6]>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function planQuizContent() {
+  const { rows } = await saleor.query(
+    `
+    SELECT p.id, p.slug, p.title, p.is_published, pt.slug AS type_slug
+    FROM page_page p
+    JOIN page_pagetype pt ON pt.id = p.page_type_id
+    WHERE p.slug = $1
+       OR pt.slug = $2
+    ORDER BY CASE WHEN p.slug = $1 THEN 0 ELSE 1 END, p.id
+    LIMIT 3
+    `,
+    [QUIZ_CONTENT_SALEOR_SLUG, QUIZ_CONTENT_PAGE_TYPE_SLUG],
+  );
+  console.log(`\n[quiz-content] saleor pages matched=${rows.length}`);
+  for (const r of rows) {
+    console.log(
+      `  id=${r.id} slug=${r.slug} type=${r.type_slug} title=${r.title} published=${r.is_published}`,
+    );
+  }
+
+  const page = rows[0];
+  if (!page) {
+    console.warn(
+      `  [quiz-content] missing page ${QUIZ_CONTENT_SALEOR_SLUG} / type ${QUIZ_CONTENT_PAGE_TYPE_SLUG}`,
+    );
+    return null;
+  }
+
+  const { rows: vals } = await saleor.query(
+    `
+    SELECT
+      a.slug AS attr_slug,
+      a.type AS attr_type,
+      length(COALESCE(av.rich_text::text, ''))::int AS rich_len,
+      length(COALESCE(av.plain_text, ''))::int AS plain_len,
+      NULLIF(btrim(COALESCE(av.file_url, '')), '') AS file_url
+    FROM attribute_assignedpageattributevalue apav
+    JOIN attribute_attributevalue av ON av.id = apav.value_id
+    JOIN attribute_attribute a ON a.id = av.attribute_id
+    WHERE apav.page_id = $1
+    ORDER BY a.slug
+    `,
+    [page.id],
+  );
+
+  let known = 0;
+  let withBody = 0;
+  for (const v of vals) {
+    const key = String(v.attr_slug || "").trim();
+    const ok = QUIZ_CONTENT_IMPORT_KEYS.has(key);
+    const has =
+      Number(v.rich_len) > 2 || Number(v.plain_len) > 0 || Boolean(v.file_url);
+    if (ok) known++;
+    if (ok && has) withBody++;
+    console.log(
+      `  ${ok ? "✓" : "·"} ${key} type=${v.attr_type} rich=${v.rich_len} plain=${v.plain_len}${
+        v.file_url ? " file" : ""
+      }`,
+    );
+  }
+  console.log(
+    `[quiz-content] attrs=${vals.length} knownKeys=${known} withBody=${withBody} → QuizContentEntry`,
+  );
+  return page;
+}
+
+async function applyQuizContent() {
+  const page = await planQuizContent();
+  if (!page) return;
+
+  const { rows: vals } = await saleor.query(
+    `
+    SELECT
+      a.slug AS attr_slug,
+      av.rich_text,
+      av.plain_text,
+      av.name AS value_name,
+      NULLIF(btrim(COALESCE(av.file_url, '')), '') AS file_url
+    FROM attribute_assignedpageattributevalue apav
+    JOIN attribute_attributevalue av ON av.id = apav.value_id
+    JOIN attribute_attribute a ON a.id = av.attribute_id
+    WHERE apav.page_id = $1
+    `,
+    [page.id],
+  );
+
+  let upserted = 0;
+  let skippedUnknown = 0;
+  let skippedEmpty = 0;
+
+  for (const v of vals) {
+    const key = String(v.attr_slug || "").trim();
+    if (!QUIZ_CONTENT_IMPORT_KEYS.has(key)) {
+      skippedUnknown++;
+      continue;
+    }
+
+    let html =
+      editorJsToHtml(v.rich_text) ||
+      (v.plain_text ? `<p>${escapeHtml(String(v.plain_text))}</p>` : null) ||
+      (v.value_name ? `<p>${escapeHtml(String(v.value_name))}</p>` : null);
+
+    let mediaUrl = null;
+    let mediaType = null;
+    if (v.file_url) {
+      const destRel = join("cms", "quiz", `${key}${safeExt(v.file_url)}`);
+      mediaUrl = await resolveMediaFile(v.file_url, destRel, "quiz-content");
+      const lower = String(v.file_url).toLowerCase();
+      mediaType = /\.(mp4|webm|mov|m4v)(\?|$)/.test(lower) ? "video" : "image";
+      if (!html) html = "";
+    }
+
+    const plain =
+      (v.plain_text && String(v.plain_text).trim()) ||
+      htmlToPlainText(html || "") ||
+      "";
+
+    if (!plain && !html && !mediaUrl) {
+      skippedEmpty++;
+      continue;
+    }
+
+    await jcos.query(
+      `INSERT INTO "QuizContentEntry" (
+         id, key, plain, html, "mediaUrl", "mediaType", "createdAt", "updatedAt"
+       ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+       ON CONFLICT (key) DO UPDATE SET
+         plain = EXCLUDED.plain,
+         html = EXCLUDED.html,
+         "mediaUrl" = COALESCE(EXCLUDED."mediaUrl", "QuizContentEntry"."mediaUrl"),
+         "mediaType" = COALESCE(EXCLUDED."mediaType", "QuizContentEntry"."mediaType"),
+         "updatedAt" = NOW()`,
+      [newId(), key, plain, html || "", mediaUrl, mediaType],
+    );
+    upserted++;
+    console.log(
+      `  [quiz-content] ${key} plain=${plain.length} html=${(html || "").length}${
+        mediaUrl ? " +media" : ""
+      }`,
+    );
+  }
+
+  console.log(
+    `[quiz-content] upserted=${upserted} skippedUnknown=${skippedUnknown} skippedEmpty=${skippedEmpty}`,
+  );
+}
+
 async function planAddresses() {
   const { rows } = await saleor.query(`
     SELECT
@@ -2938,6 +3336,7 @@ function want(name) {
         name === "users" ||
         name === "addresses" ||
         name === "quiz" ||
+        name === "quiz-content" ||
         name === "variant-dimensions" ||
         name === "gratitude"
       );
@@ -2968,6 +3367,11 @@ try {
   if (want("media")) {
     if (apply) await applyMedia();
     else await planMedia();
+  }
+  if (want("variant-media")) {
+    // Also runs at end of --step=media apply; standalone re-links without re-download.
+    if (apply) await applyVariantMedia();
+    else await planVariantMedia();
   }
   if (want("collections")) {
     if (apply) await applyCollections();
@@ -3016,6 +3420,10 @@ try {
   if (want("quiz")) {
     if (apply) await applyQuiz();
     else await planQuiz();
+  }
+  if (want("quiz-content")) {
+    if (apply) await applyQuizContent();
+    else await planQuizContent();
   }
   if (want("variant-dimensions")) {
     if (apply) await applyVariantDimensions();

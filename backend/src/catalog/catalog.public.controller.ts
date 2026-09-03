@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Header, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import {
   parseOptionalNonNegInt,
@@ -23,7 +23,13 @@ export class CatalogPublicController {
     @Query('priceMin') priceMin?: string,
     @Query('priceMax') priceMax?: string,
     @Query('sale') sale?: string,
+    /** Comma-separated — batch cards by slug (search hydrate), preserves order. */
+    @Query('slugs') slugs?: string,
   ) {
+    const slugList = slugs
+      ?.split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     return this.catalogPublic.listProducts({
       page: parseOptionalPositiveInt(page),
       limit: parseOptionalPositiveInt(limit),
@@ -34,6 +40,7 @@ export class CatalogPublicController {
       priceMin: parseOptionalNonNegInt(priceMin),
       priceMax: parseOptionalNonNegInt(priceMax),
       saleOnly: sale === '1' || sale === 'true',
+      slugs: slugList?.length ? slugList : undefined,
     });
   }
 
@@ -55,9 +62,29 @@ export class CatalogPublicController {
     return product;
   }
 
+  @Get('open-graph')
+  @Header('Content-Type', 'text/html; charset=utf-8')
+  @Header('Cache-Control', 'public, max-age=120')
+  openGraphHtml(
+    @Query('path') path?: string,
+    @Query('collection') collection?: string,
+    @Query('tag') tag?: string,
+    @Query('q') q?: string,
+  ) {
+    return this.catalogPublic.renderOpenGraphHtml({
+      path: path?.trim() || '/catalog',
+      collection: collection?.trim() || '',
+      tag: tag?.trim() || '',
+      q: q?.trim() || '',
+    });
+  }
+
   @Get('collections')
-  listCollections() {
-    return this.catalogPublic.listCollections();
+  listCollections(@Query('includeProducts') includeProducts?: string) {
+    return this.catalogPublic.listCollections({
+      includeProducts:
+        includeProducts === '1' || includeProducts === 'true',
+    });
   }
 
   @Get('categories')

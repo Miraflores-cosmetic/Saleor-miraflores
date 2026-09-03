@@ -96,6 +96,22 @@
   min-width: 100%;
 }
 
+.bubbleKids {
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.bubbleKids .bubbleImg,
+.bubbleKids .bubblePh {
+  width: 52px;
+  height: 52px;
+}
+
+.bubbleKids .bubbleLabel {
+  font-size: 14px;
+  padding-right: 12px;
+}
+
 .bubble {
   display: inline-flex;
   align-items: center;
@@ -376,6 +392,17 @@
   .body {
     padding-top: 24px;
     padding-bottom: 56px;
+  }
+
+  /* denser kids row on mobile */
+  .bubbleKids .bubbleImg,
+  .bubbleKids .bubblePh {
+    width: 32px;
+    height: 32px;
+  }
+
+  .bubbleKids .bubbleLabel {
+    font-size: 12px;
   }
 
   .bubblesWrap {

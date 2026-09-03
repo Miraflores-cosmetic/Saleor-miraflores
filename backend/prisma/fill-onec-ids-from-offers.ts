@@ -11,11 +11,33 @@
  *
  * Также: npm run prisma:fill-onec-ids -- ../path/offers.xml --dry-run
  */
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import { resolve, join } from 'path';
 import { PrismaClient } from '@prisma/client';
 import { parseOffersXml } from '../src/onec/onec-offers.parser';
 
+/** backend/.env — Prisma CLI не подхватывает его в ts-node скриптах автоматически */
+function loadBackendEnv() {
+  const envPath = join(__dirname, '..', '.env');
+  if (!existsSync(envPath)) return;
+  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+    const t = line.trim();
+    if (!t || t.startsWith('#')) continue;
+    const i = t.indexOf('=');
+    if (i < 0) continue;
+    const key = t.slice(0, i).trim();
+    let val = t.slice(i + 1).trim();
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
+      val = val.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = val;
+  }
+}
+
+loadBackendEnv();
 const prisma = new PrismaClient();
 
 function normalizeKey(s: string): string {
