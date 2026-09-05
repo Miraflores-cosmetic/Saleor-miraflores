@@ -30,7 +30,7 @@ import {
 import { useAdminPaginatedList } from '@/lib/useAdminPaginatedList';
 import styles from '@/app/(admin)/admin/catalog/catalogAdmin.module.css';
 
-const PAGE_LIMIT = 20;
+const PAGE_LIMIT = 100;
 
 function TrashIcon() {
   return (
