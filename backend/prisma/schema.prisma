@@ -239,6 +239,8 @@ model ProductReview {
   image1Url     String?
   image2Url     String?
   isPublished   Boolean   @default(false)
+  /// Порядок на витрине / в админке «Опубликованные» (меньше = выше)
+  sortOrder     Int       @default(0)
   moderatedById String?
   moderatedBy   User?     @relation("ReviewModerator", fields: [moderatedById], references: [id], onDelete: SetNull)
   moderatedAt   DateTime?
@@ -250,6 +252,7 @@ model ProductReview {
   @@index([productId, isPublished])
   @@index([userId])
   @@index([isPublished, createdAt])
+  @@index([isPublished, sortOrder])
   /// Один отзыв на товар от покупателя (userId null — админ/ETL, несколько строк ок в PG)
   @@unique([productId, userId])
 }

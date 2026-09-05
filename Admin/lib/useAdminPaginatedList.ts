@@ -134,6 +134,7 @@ export function useAdminPaginatedList<T>({
     fetching,
     error,
     items,
+    setItems,
     total,
     dataPage,
     dataLimit,

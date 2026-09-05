@@ -205,6 +205,18 @@
   font-weight: var(--text-caption-weight, 300);
 }
 
+.linkBtn {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .labelCheckboxRow {
   display: flex;
   align-items: center;

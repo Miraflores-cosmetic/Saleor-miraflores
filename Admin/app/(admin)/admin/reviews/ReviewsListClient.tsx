@@ -7,6 +7,10 @@ import { AdminCheckbox } from '@/components/admin/AdminCheckbox/AdminCheckbox';
 import { AdminCompactBtn, AdminCompactBtnLink } from '@/components/AdminCompactBtn/AdminCompactBtn';
 import { AdminListPagination } from '@/components/admin/AdminListPagination/AdminListPagination';
 import { AdminListShell } from '@/components/admin/AdminListShell/AdminListShell';
+import {
+  AdminSortableTable,
+  DragHandleCell,
+} from '@/components/admin/AdminSortableTable/AdminSortableTable';
 import { AdminTabs } from '@/components/AdminTabs/AdminTabs';
 import { ConfirmDialog } from '@/components/ConfirmDialog/ConfirmDialog';
 import { AdminSearchBox } from '@/components/SearchBox/SearchBox';
@@ -18,7 +22,6 @@ import {
 import { formatAdminDateTime } from '@/lib/adminFormat';
 import {
   parseReviewStatusFilter,
-  reviewAuthorLabel,
   type AdminReviewCounts,
   type AdminReviewListResponse,
   type AdminReviewRow,
@@ -73,6 +76,19 @@ function tabLabel(base: string, n: number | undefined): string {
   return n == null ? base : `${base} (${n})`;
 }
 
+function isVideoUrl(url: string | null | undefined): boolean {
+  return Boolean(url && /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url));
+}
+
+function reviewPreviewLabel(r: AdminReviewRow): string {
+  const text = r.text?.trim() || '';
+  if (text) return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  const media = r.image1Url?.trim() || r.image2Url?.trim() || '';
+  if (isVideoUrl(media)) return 'Видео';
+  if (media) return 'Фото';
+  return 'Без текста';
+}
+
 type ConfirmKind = 'delete' | 'reject' | 'bulk-delete' | 'bulk-reject' | 'bulk-publish';
 
 export function ReviewsListClient() {
@@ -98,6 +114,7 @@ export function ReviewsListClient() {
   const initialQ = searchParams.get('q') ?? '';
   const initialPage = Math.max(1, Number(searchParams.get('page')) || 1);
   const filterKey = `${status}|${productId}`;
+  const sortable = status === 'published';
 
   const buildPath = useCallback(
     ({ page, limit, q }: { page: number; limit: number; q: string }) => {
@@ -128,6 +145,7 @@ export function ReviewsListClient() {
     fetching,
     error,
     items,
+    setItems,
     total,
     dataPage,
     dataLimit,
@@ -229,6 +247,25 @@ export function ReviewsListClient() {
     await reload();
   }
 
+  async function reorder(orderedIds: string[]) {
+    const prev = items;
+    setItems((cur) => {
+      const map = new Map(cur.map((r) => [r.id, r]));
+      return orderedIds.map((id) => map.get(id)!).filter(Boolean);
+    });
+    try {
+      await adminBackendJson('reviews/admin/reorder', {
+        method: 'POST',
+        body: JSON.stringify({ orderedIds }),
+      });
+    } catch (e) {
+      setItems(prev);
+      showToast(
+        e instanceof AdminBackendRequestError ? e.message : 'Не удалось сохранить порядок',
+      );
+    }
+  }
+
   async function runConfirm() {
     if (!confirm) return;
     const kind = confirm.kind;
@@ -291,6 +328,127 @@ export function ReviewsListClient() {
             message: 'Отзыв будет удалён безвозвратно.',
             confirmLabel: 'Удалить',
           };
+
+  function renderRowCells(r: AdminReviewRow, drag?: Parameters<typeof DragHandleCell>[0]) {
+    return (
+      <>
+        <td>
+          <AdminCheckbox
+            className={styles.adminCheckboxInTable}
+            checked={selected.has(r.id)}
+            onChange={() => toggleOne(r.id)}
+            aria-label="Выбрать отзыв"
+          />
+        </td>
+        {drag ? <DragHandleCell {...drag} /> : null}
+        <td>
+          <span>{r.product.name}</span>
+          <div className={styles.mutedInline}>
+            <Link href={`/admin/catalog/products/${r.product.id}`}>карточка</Link>
+            {' · '}
+            <button
+              type="button"
+              className={styles.linkBtn}
+              onClick={() => {
+                setProductId(r.product.id);
+                setStatus('all');
+              }}
+            >
+              фильтр
+            </button>
+            {r.orderId ? <> · заказ {r.orderId.slice(0, 8)}…</> : null}
+          </div>
+        </td>
+        <td>{r.rating}</td>
+        <td>
+          <Link href={`/admin/reviews/${r.id}`} title={r.text || undefined}>
+            {reviewPreviewLabel(r)}
+          </Link>
+          {r.image1Url || r.image2Url ? (
+            <span className={styles.mutedInline}> · медиа</span>
+          ) : null}
+        </td>
+        <td className={styles.mutedInline}>{formatAdminDateTime(r.createdAt)}</td>
+        <td className={styles.mutedInline}>
+          {r.moderatedAt ? formatAdminDateTime(r.moderatedAt) : '—'}
+        </td>
+        <td>
+          <span
+            className={`${styles.badge} ${
+              r.isPublished ? styles.badgeOn : styles.badgeDraft
+            }`}
+          >
+            {r.isPublished ? 'Опубликован' : 'На модерации'}
+          </span>
+        </td>
+        <td className={styles.tableCellActions}>
+          <div className={styles.actionGroup}>
+            <AdminCompactBtnLink
+              href={`/admin/reviews/${r.id}`}
+              variant="outline"
+              className={styles.iconBtn}
+              aria-label="Изменить отзыв"
+              title="Изменить"
+            >
+              <EditIcon />
+            </AdminCompactBtnLink>
+            {!r.isPublished ? (
+              <>
+                <AdminCompactBtn
+                  type="button"
+                  variant="accent"
+                  disabled={busyId === r.id || bulkBusy}
+                  onClick={() => void publish(r)}
+                >
+                  Опубликовать
+                </AdminCompactBtn>
+                <AdminCompactBtn
+                  type="button"
+                  variant="outline"
+                  disabled={busyId === r.id || bulkBusy}
+                  onClick={() => setConfirm({ kind: 'reject', row: r })}
+                >
+                  Отклонить
+                </AdminCompactBtn>
+              </>
+            ) : null}
+            <AdminCompactBtn
+              type="button"
+              variant="danger"
+              className={styles.iconDangerBtn}
+              disabled={busyId === r.id || bulkBusy}
+              onClick={() => setConfirm({ kind: 'delete', row: r })}
+              aria-label="Удалить отзыв"
+              title="Удалить"
+            >
+              <TrashIcon />
+            </AdminCompactBtn>
+          </div>
+        </td>
+      </>
+    );
+  }
+
+  const head = (
+    <tr>
+      <th style={{ width: 40 }}>
+        <AdminCheckbox
+          className={styles.adminCheckboxInTable}
+          checked={allSelected}
+          onChange={toggleAll}
+          aria-label="Выбрать все на странице"
+        />
+      </th>
+      {sortable ? <th style={{ width: 36 }} aria-label="Порядок" /> : null}
+      <th>Товар</th>
+      <th>★</th>
+      <th>Текст</th>
+      <th>Дата</th>
+      <th>Модерация</th>
+      <th>Статус</th>
+      <th />
+    </tr>
+  );
 
   return (
     <>
@@ -385,130 +543,28 @@ export function ReviewsListClient() {
           ) : null
         }
       >
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th style={{ width: 40 }}>
-                  <AdminCheckbox
-                    className={styles.adminCheckboxInTable}
-                    checked={allSelected}
-                    onChange={toggleAll}
-                    aria-label="Выбрать все на странице"
-                  />
-                </th>
-                <th>Товар</th>
-                <th>★</th>
-                <th>Текст</th>
-                <th>Автор</th>
-                <th>Дата</th>
-                <th>Модерация</th>
-                <th>Статус</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((r) => (
-                <tr key={r.id}>
-                  <td>
-                    <AdminCheckbox
-                      className={styles.adminCheckboxInTable}
-                      checked={selected.has(r.id)}
-                      onChange={() => toggleOne(r.id)}
-                      aria-label={`Выбрать отзыв`}
-                    />
-                  </td>
-                  <td>
-                    <Link
-                      href={`/admin/reviews?productId=${encodeURIComponent(r.product.id)}&status=all`}
-                      onClick={(e) => {
-                        if (!e.metaKey && !e.ctrlKey) {
-                          e.preventDefault();
-                          setProductId(r.product.id);
-                          setStatus('all');
-                        }
-                      }}
-                      title="Фильтр по товару"
-                    >
-                      {r.product.name}
-                    </Link>
-                    <div className={styles.mutedInline}>
-                      <Link href={`/admin/catalog/products/${r.product.id}`}>карточка</Link>
-                      {r.orderId ? <> · заказ {r.orderId.slice(0, 8)}…</> : null}
-                    </div>
-                  </td>
-                  <td>{r.rating}</td>
-                  <td>
-                    <span title={r.text}>
-                      {r.text.length > 80 ? `${r.text.slice(0, 80)}…` : r.text}
-                    </span>
-                    {r.image1Url || r.image2Url ? (
-                      <span className={styles.mutedInline}> · медиа</span>
-                    ) : null}
-                  </td>
-                  <td>{reviewAuthorLabel(r)}</td>
-                  <td className={styles.mutedInline}>{formatAdminDateTime(r.createdAt)}</td>
-                  <td className={styles.mutedInline}>
-                    {r.moderatedAt ? formatAdminDateTime(r.moderatedAt) : '—'}
-                  </td>
-                  <td>
-                    <span
-                      className={`${styles.badge} ${
-                        r.isPublished ? styles.badgeOn : styles.badgeDraft
-                      }`}
-                    >
-                      {r.isPublished ? 'Опубликован' : 'На модерации'}
-                    </span>
-                  </td>
-                  <td className={styles.tableCellActions}>
-                    <div className={styles.actionGroup}>
-                      <AdminCompactBtnLink
-                        href={`/admin/reviews/${r.id}`}
-                        variant="outline"
-                        className={styles.iconBtn}
-                        aria-label="Изменить отзыв"
-                        title="Изменить"
-                      >
-                        <EditIcon />
-                      </AdminCompactBtnLink>
-                      {!r.isPublished ? (
-                        <>
-                          <AdminCompactBtn
-                            type="button"
-                            variant="accent"
-                            disabled={busyId === r.id || bulkBusy}
-                            onClick={() => void publish(r)}
-                          >
-                            Опубликовать
-                          </AdminCompactBtn>
-                          <AdminCompactBtn
-                            type="button"
-                            variant="outline"
-                            disabled={busyId === r.id || bulkBusy}
-                            onClick={() => setConfirm({ kind: 'reject', row: r })}
-                          >
-                            Отклонить
-                          </AdminCompactBtn>
-                        </>
-                      ) : null}
-                      <AdminCompactBtn
-                        type="button"
-                        variant="danger"
-                        className={styles.iconDangerBtn}
-                        disabled={busyId === r.id || bulkBusy}
-                        onClick={() => setConfirm({ kind: 'delete', row: r })}
-                        aria-label="Удалить отзыв"
-                        title="Удалить"
-                      >
-                        <TrashIcon />
-                      </AdminCompactBtn>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {sortable ? (
+          <AdminSortableTable
+            ids={items.map((r) => r.id)}
+            onReorder={reorder}
+            head={head}
+            renderRow={(id, drag) => {
+              const r = items.find((x) => x.id === id)!;
+              return renderRowCells(r, drag);
+            }}
+          />
+        ) : (
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>{head}</thead>
+              <tbody>
+                {items.map((r) => (
+                  <tr key={r.id}>{renderRowCells(r)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </AdminListShell>
 
       <ConfirmDialog

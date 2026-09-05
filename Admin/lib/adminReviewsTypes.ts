@@ -27,6 +27,7 @@ export type AdminReviewRow = {
   image1Url: string | null;
   image2Url: string | null;
   isPublished: boolean;
+  sortOrder?: number;
   moderatedById: string | null;
   moderatedAt: string | null;
   createdAt: string;

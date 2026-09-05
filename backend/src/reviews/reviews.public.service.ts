@@ -31,7 +31,7 @@ function publicSerialize(r: {
     id: r.id,
     rating: r.rating,
     text: r.text,
-    authorName: r.authorName?.trim() || r.user?.displayName?.trim() || 'Покупатель',
+    authorName: r.authorName?.trim() || r.user?.displayName?.trim() || null,
     image1Url: r.image1Url,
     image2Url: r.image2Url,
     createdAt: r.createdAt,
@@ -71,7 +71,7 @@ export class ReviewsPublicService {
       this.prisma.productReview.count({ where }),
       this.prisma.productReview.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
         select: {
@@ -118,7 +118,7 @@ export class ReviewsPublicService {
       this.prisma.productReview.count({ where }),
       this.prisma.productReview.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
         select: {

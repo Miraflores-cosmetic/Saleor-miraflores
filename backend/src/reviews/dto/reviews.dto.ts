@@ -1,4 +1,15 @@
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateReviewAdminDto {
@@ -6,15 +17,16 @@ export class CreateReviewAdminDto {
   @MinLength(1)
   productId!: string;
 
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(5)
   @Type(() => Number)
-  rating!: number;
+  rating?: number;
 
+  @IsOptional()
   @IsString()
-  @MinLength(1)
-  text!: string;
+  text?: string;
 
   @IsOptional()
   @IsString()
@@ -43,7 +55,6 @@ export class UpdateReviewAdminDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(1)
   text?: string;
 
   @IsOptional()
@@ -61,6 +72,14 @@ export class UpdateReviewAdminDto {
   @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
+}
+
+export class ReorderReviewsAdminDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(5000)
+  @IsString({ each: true })
+  orderedIds!: string[];
 }
 
 export class CreateReviewPublicDto {

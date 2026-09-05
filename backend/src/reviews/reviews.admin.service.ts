@@ -36,6 +36,7 @@ function serializeReview(
     image1Url: r.image1Url,
     image2Url: r.image2Url,
     isPublished: r.isPublished,
+    sortOrder: r.sortOrder,
     moderatedById: r.moderatedById,
     moderatedAt: r.moderatedAt,
     createdAt: r.createdAt,
@@ -102,7 +103,10 @@ export class ReviewsAdminService {
       this.prisma.productReview.findMany({
         where,
         include: reviewInclude,
-        orderBy: { createdAt: 'desc' },
+        orderBy:
+          opts.status === 'published'
+            ? [{ sortOrder: 'asc' }, { createdAt: 'desc' }]
+            : [{ createdAt: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -135,20 +139,23 @@ export class ReviewsAdminService {
 
   async create(dto: CreateReviewAdminDto, moderatorId?: string) {
     await this.requireProduct(dto.productId);
-    const rating = dto.rating;
+    const rating = dto.rating ?? 5;
     if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       throw new BadRequestException('Рейтинг 1–5');
     }
     const published = dto.isPublished ?? false;
+    const maxSort = await this.prisma.productReview.aggregate({ _max: { sortOrder: true } });
+    const sortOrder = (maxSort._max.sortOrder ?? -1) + 1;
     const row = await this.prisma.productReview.create({
       data: {
         productId: dto.productId,
         rating,
-        text: dto.text.trim(),
+        text: dto.text?.trim() || '',
         authorName: dto.authorName?.trim() || null,
         image1Url: dto.image1Url?.trim() || null,
         image2Url: dto.image2Url?.trim() || null,
         isPublished: published,
+        sortOrder,
         moderatedById: published ? moderatorId ?? null : null,
         moderatedAt: published ? new Date() : null,
       },
@@ -223,6 +230,32 @@ export class ReviewsAdminService {
     if (existing.image1Url) await this.storage.deleteByPublicUrl(existing.image1Url);
     if (existing.image2Url) await this.storage.deleteByPublicUrl(existing.image2Url);
     return { ok: true };
+  }
+
+  async reorder(orderedIds: string[]) {
+    const unique = new Set(orderedIds);
+    if (unique.size !== orderedIds.length) {
+      throw new BadRequestException('В порядке не должно быть дубликатов id');
+    }
+    const rows = await this.prisma.productReview.findMany({
+      where: { id: { in: orderedIds } },
+      select: { id: true, sortOrder: true },
+    });
+    if (rows.length !== orderedIds.length) {
+      throw new BadRequestException('Неизвестный id отзыва');
+    }
+    const sorts = [...rows]
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id))
+      .map((r) => r.sortOrder);
+    await this.prisma.$transaction(
+      orderedIds.map((id, index) =>
+        this.prisma.productReview.update({
+          where: { id },
+          data: { sortOrder: sorts[index]! },
+        }),
+      ),
+    );
+    return { ok: true as const };
   }
 
   async uploadMedia(file: {

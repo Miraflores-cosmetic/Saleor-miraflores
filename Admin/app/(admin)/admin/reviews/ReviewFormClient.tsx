@@ -139,16 +139,12 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
   }
 
   async function save() {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      setError('Текст обязателен');
-      return;
-    }
     if (!isEdit && !productId) {
       setError('Выберите товар');
       return;
     }
 
+    const trimmed = text.trim();
     const image1Url = mediaUrl?.trim() || null;
     setSaving(true);
     setError(null);

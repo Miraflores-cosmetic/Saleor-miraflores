@@ -18,7 +18,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { parseOptionalPositiveInt } from '../common/parse-positive-int';
-import { CreateReviewAdminDto, UpdateReviewAdminDto } from './dto/reviews.dto';
+import { CreateReviewAdminDto, ReorderReviewsAdminDto, UpdateReviewAdminDto } from './dto/reviews.dto';
 import { ReviewsAdminService } from './reviews.admin.service';
 
 @Controller('reviews/admin')
@@ -55,6 +55,11 @@ export class ReviewsAdminController {
       page: parseOptionalPositiveInt(page),
       limit: parseOptionalPositiveInt(limit),
     });
+  }
+
+  @Post('reorder')
+  reorder(@Body() dto: ReorderReviewsAdminDto) {
+    return this.reviews.reorder(dto.orderedIds);
   }
 
   @Post()

@@ -56,10 +56,6 @@ export function ReviewMediaField({
       <p className={styles.cardNote} style={{ marginBottom: 8 }}>
         Медиа для витрины
       </p>
-      <p className={styles.muted} style={{ marginTop: 0, marginBottom: 10 }}>
-        Одно изображение или видео. С медиа отзыв показывается как фото/рилс-карточка; без
-        медиа — текстовая карточка.
-      </p>
       <div className={styles.toolbar} style={{ marginBottom: 10 }}>
         <AdminCompactBtn
           type="button"
