@@ -7,6 +7,7 @@ import {
 } from '../discounts/discount-pricing.engine';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  PUBLIC_HIDDEN_CATEGORY_SLUGS,
   PUBLIC_PRODUCTS_DEFAULT_LIMIT,
   PUBLIC_PRODUCTS_IN_MEMORY_MAX,
   PUBLIC_PRODUCTS_MAX_LIMIT,
@@ -635,6 +636,7 @@ export class CatalogPublicService {
 
   async listCategories() {
     const rows = await this.prisma.category.findMany({
+      where: { slug: { notIn: [...PUBLIC_HIDDEN_CATEGORY_SLUGS] } },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       select: {
         id: true,

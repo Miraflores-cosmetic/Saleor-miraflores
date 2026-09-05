@@ -62,4 +62,35 @@ describe('adminPathAllowed', () => {
     expect(adminPathAllowed('/admin/settings/seo', moderatorSettings)).toBe(true);
     expect(adminPathAllowed('/admin/settings', superAdmin)).toBe(true);
   });
+
+  it('homepage-sets / hero — grant settings (не только суперадмин)', () => {
+    const moderatorSettings: StaffContext = {
+      isSuperAdmin: false,
+      sections: ['settings'],
+      staffDisplayName: null,
+      staffAvatarUrl: null,
+    };
+    expect(adminPathAllowed('/admin/homepage-sets', moderatorSettings)).toBe(true);
+    expect(adminPathAllowed('/admin/hero', moderatorSettings)).toBe(true);
+    expect(adminPathAllowed('/admin/faq', moderatorSettings)).toBe(true);
+  });
+
+  it('discounts — нужен grant discounts', () => {
+    const withDiscounts: StaffContext = {
+      isSuperAdmin: false,
+      sections: ['discounts'],
+      staffDisplayName: null,
+      staffAvatarUrl: null,
+    };
+    const without: StaffContext = {
+      isSuperAdmin: false,
+      sections: ['settings'],
+      staffDisplayName: null,
+      staffAvatarUrl: null,
+    };
+    expect(adminPathAllowed('/admin/discounts', withDiscounts)).toBe(true);
+    expect(adminPathAllowed('/admin/discounts/new', withDiscounts)).toBe(true);
+    expect(adminPathAllowed('/admin/promo', withDiscounts)).toBe(true);
+    expect(adminPathAllowed('/admin/discounts', without)).toBe(false);
+  });
 });

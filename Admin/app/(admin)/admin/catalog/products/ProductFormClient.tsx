@@ -603,6 +603,7 @@ export function ProductFormClient({ productId }: { productId?: string }) {
             <AdminRichField
               label="Хранение"
               value={storageHtml}
+              compact
               onChange={(v) => {
                 markDirty();
                 setStorageHtml(v);

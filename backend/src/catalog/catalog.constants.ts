@@ -9,6 +9,12 @@ export const PUBLIC_PRODUCTS_DEFAULT_LIMIT = 48;
 export const PUBLIC_PRODUCTS_MAX_LIMIT = 100;
 
 /**
+ * Служебные корни (ETL fallback) — не показываем в пузырях / меню витрины.
+ * Товары в категории остаются доступны по прямым URL и в выдаче.
+ */
+export const PUBLIC_HIDDEN_CATEGORY_SLUGS = ['uncategorized'] as const;
+
+/**
  * Soft cap for sale/price/popular in-memory pool (card price + campaigns).
  * TODO(scale): denormalized cardPrice / onSale / popularity + SQL ORDER BY / cursor.
  * Hitting the cap truncates total (logged).

@@ -37,6 +37,8 @@ export type AdminRichFieldProps = {
   uploadPath?: string;
   /** Taller editor (blog body) */
   tall?: boolean;
+  /** Компактный редактор (короткие поля вроде «Хранение») */
+  compact?: boolean;
   /** После успешной загрузки картинки в редактор (для orphan-cleanup) */
   onUploaded?: (url: string) => void;
   /** Блокирует редактирование (например во время Save). */
@@ -49,6 +51,7 @@ export function AdminRichField({
   onChange,
   uploadPath = 'catalog/admin/upload-rich-media?type=image',
   tall = false,
+  compact = false,
   onUploaded,
   disabled = false,
 }: AdminRichFieldProps) {
@@ -120,9 +123,11 @@ export function AdminRichField({
     [uploadPath, disabled],
   );
 
+  const sizeClass = tall ? styles.tall : compact ? styles.compact : '';
+
   return (
     <div
-      className={`${styles.wrap} ${tall ? styles.tall : ''} ${disabled ? styles.disabled : ''}`.trim()}
+      className={`${styles.wrap} ${sizeClass} ${disabled ? styles.disabled : ''}`.trim()}
     >
       <span className={styles.label}>{label}</span>
       <div className={styles.editor}>

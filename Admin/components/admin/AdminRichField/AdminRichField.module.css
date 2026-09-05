@@ -39,6 +39,16 @@
   min-height: 440px;
 }
 
+.compact .editor :global(.ql-container.ql-snow) {
+  min-height: 72px;
+}
+
+.compact .editor :global(.ql-editor) {
+  min-height: 56px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
 .error {
   margin: 0;
   font-size: 0.8125rem;
