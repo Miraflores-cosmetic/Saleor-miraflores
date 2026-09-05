@@ -225,14 +225,14 @@ export class ReviewsAdminService {
     return { ok: true };
   }
 
-  async uploadImage(file: {
+  async uploadMedia(file: {
     buffer: Buffer;
     mimetype: string;
     size: number;
     originalname?: string;
   }) {
-    const { url } = await this.storage.saveImage(file, 'reviews');
-    return { url };
+    const { url, mediaType } = await this.storage.saveGalleryMedia(file, 'reviews');
+    return { url, mediaType };
   }
 
   private async requireProduct(productId: string) {

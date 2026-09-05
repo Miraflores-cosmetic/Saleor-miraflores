@@ -30,12 +30,12 @@ export class ReviewsAdminController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
-      limits: { fileSize: 6 * 1024 * 1024 },
+      limits: { fileSize: 80 * 1024 * 1024 },
     }),
   )
   upload(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('Файл не передан');
-    return this.reviews.uploadImage(file);
+    return this.reviews.uploadMedia(file);
   }
 
   @Get()

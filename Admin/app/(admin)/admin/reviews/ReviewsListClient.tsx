@@ -443,7 +443,7 @@ export function ReviewsListClient() {
                       {r.text.length > 80 ? `${r.text.slice(0, 80)}…` : r.text}
                     </span>
                     {r.image1Url || r.image2Url ? (
-                      <span className={styles.mutedInline}> · фото</span>
+                      <span className={styles.mutedInline}> · медиа</span>
                     ) : null}
                   </td>
                   <td>{reviewAuthorLabel(r)}</td>

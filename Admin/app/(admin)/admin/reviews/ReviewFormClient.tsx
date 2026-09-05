@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { DiscountProductPickerModal } from '@/app/(admin)/admin/discounts/DiscountScopePickerModal';
 import { AdminCheckbox } from '@/components/admin/AdminCheckbox/AdminCheckbox';
@@ -21,12 +21,7 @@ import { formatAdminDateTime } from '@/lib/adminFormat';
 import type { AdminReviewRow } from '@/lib/adminReviewsTypes';
 import styles from '@/app/(admin)/admin/catalog/catalogAdmin.module.css';
 import pn from '@/app/(admin)/admin/catalog/products/productNew.module.css';
-import {
-  ReviewImagesGallery,
-  galleryToUrls,
-  urlsToGallery,
-  type ReviewGalleryItem,
-} from './ReviewImagesGallery';
+import { ReviewMediaField } from './ReviewMediaField';
 
 function TrashIcon() {
   return (
@@ -51,7 +46,6 @@ function TrashIcon() {
 export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string }) {
   const router = useRouter();
   const { showToast } = useToast();
-  const galleryIdPrefix = useId();
 
   const [reviewId, setReviewId] = useState(reviewIdProp);
   const isEdit = Boolean(reviewId);
@@ -75,7 +69,7 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
   const [text, setText] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [isPublished, setIsPublished] = useState(false);
-  const [gallery, setGallery] = useState<ReviewGalleryItem[]>([]);
+  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
 
   function markDirty() {
     setDirty(true);
@@ -94,7 +88,7 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
     setText(row.text);
     setAuthorName(row.authorName ?? '');
     setIsPublished(row.isPublished);
-    setGallery(urlsToGallery(row.image1Url, row.image2Url, galleryIdPrefix));
+    setMediaUrl(row.image1Url?.trim() || row.image2Url?.trim() || null);
     setDirty(false);
   }
 
@@ -120,7 +114,7 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per id
-  }, [reviewIdProp, galleryIdPrefix]);
+  }, [reviewIdProp]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -155,7 +149,7 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
       return;
     }
 
-    const { image1Url, image2Url } = galleryToUrls(gallery);
+    const image1Url = mediaUrl?.trim() || null;
     setSaving(true);
     setError(null);
     try {
@@ -167,7 +161,7 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
             text: trimmed,
             authorName: authorName.trim() || null,
             image1Url,
-            image2Url,
+            image2Url: null,
             isPublished,
           }),
         });
@@ -183,7 +177,7 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
             text: trimmed,
             authorName: authorName.trim() || null,
             image1Url,
-            image2Url,
+            image2Url: null,
             isPublished,
           }),
         });
@@ -402,11 +396,11 @@ export function ReviewFormClient({ reviewId: reviewIdProp }: { reviewId?: string
           <label htmlFor="review-published">Опубликован</label>
         </div>
 
-        <ReviewImagesGallery
-          images={gallery}
+        <ReviewMediaField
+          url={mediaUrl}
           onChange={(next) => {
             markDirty();
-            setGallery(next);
+            setMediaUrl(next);
           }}
         />
       </div>

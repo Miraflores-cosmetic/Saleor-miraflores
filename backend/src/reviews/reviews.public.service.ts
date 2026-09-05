@@ -53,6 +53,7 @@ export class ReviewsPublicService {
         slug: true,
         name: true,
         active: true,
+        shortDescription: true,
         images: {
           take: 1,
           orderBy: { sortOrder: 'asc' },
@@ -96,6 +97,7 @@ export class ReviewsPublicService {
         id: product.id,
         slug: product.slug,
         name: product.name,
+        shortDescription: product.shortDescription,
         imageUrl: product.images[0]?.url ?? null,
       },
       ratingAvg: agg._avg.rating != null ? Math.round(agg._avg.rating * 10) / 10 : null,
@@ -133,6 +135,7 @@ export class ReviewsPublicService {
               id: true,
               slug: true,
               name: true,
+              shortDescription: true,
               images: {
                 take: 1,
                 orderBy: { sortOrder: 'asc' },
@@ -151,6 +154,7 @@ export class ReviewsPublicService {
           id: r.product.id,
           slug: r.product.slug,
           name: r.product.name,
+          shortDescription: r.product.shortDescription,
           imageUrl: r.product.images[0]?.url ?? null,
         },
       })),
